@@ -41,9 +41,11 @@ Automated gates catch what is *broken*, not what is *bad*. Run them first so the
 | ASR on VO | Whisper on each TTS line and on the final mix | Mispronunciations, garbled numbers | Matches the script |
 | Resolution | Source pixels per screen pixel for every image | Upscaled mush | ≥ 1 for photos |
 | Facts | Every on-screen number and claim traced to a FACTS.md row; every core fact the brief names (promise, CTA, the headline number) is present; strips across every counter | Invented or overstated claims; a check that passes because nothing is shown; a label on an in-transit counter value; an unfinished period shown as complete; timing written as cause | 100% traced or labelled; core facts on screen; no paused frame pairs a label with a wrong value; partial periods say "to date" |
+| Actions shown | A strip across each action the brief or treatment says must be seen | A caption or badge standing in for an action; an effect quietly dropped | Every named action visibly animated; every divergence from the brief in the report |
+| Revision scope | After a fix, re-render frames outside its scope from the old and new code (`seek(t)` captures, before encoding) and diff them | Collateral changes from a fix | Pixel-identical. For an element-scoped fix, mask the element's bounds in both and compare the rest. Don't diff two MP4s: the encoder spreads differences on both sides of an edit |
 | Leaks | Grep committed files and rendered text for process words, placeholders ("Acme", "lorem", "Your headline"), debug labels, card names | Template residue | Zero; also *watch the last seconds*, because text drawn into images can't be grepped |
 
-`scripts/check_timeline.py` covers the timeline, the hook timing and declared sizes, text holds and terms. `scripts/qa_video.py` covers the measured hook, CTA and term text, frame 0, pops/flashes, frozen and flat frames, cuts vs plan, loudness, dramatic arc, loop seam and the contact sheets. The page-level checks (determinism, read time, text bounds) need the page contract (craft.md §12).
+`scripts/check_timeline.py` covers the timeline, the hook timing and declared sizes, text holds and terms. `scripts/qa_video.py` covers the measured hook, CTA and term text, frame 0, pops/flashes, frozen and flat frames, cuts vs plan, loudness, dramatic arc, loop seam and the contact sheets. The page-level checks (determinism, read time, text bounds, revision scope) need the page contract (craft.md §12).
 
 ## 2. Visual review protocol
 
@@ -94,7 +96,7 @@ These are what a model produces when unconstrained. Ban them unless the brief de
 **Content**
 - Grey placeholder UI and skeleton bars.
 - "Acme", lorem ipsum, "Your headline here".
-- A technique described in text (a "FREEZE" badge) instead of shown.
+- A technique or action described in text (a "FREEZE" badge, a "HATCHING" caption) instead of shown.
 - A sign that repeats what the picture already says.
 - Fake UI "mockup + slogan".
 - Invented features or numbers.
@@ -145,7 +147,7 @@ If an input is missing, the critic marks the affected items "unverifiable" rathe
 | Rhythm and variety | Cued reveals; acceleration plus a breath; no dead or flat stretches; new information every 2–4 s |
 | Composition and look | One focal point, light and depth, accent discipline, poster holds, none of the tells |
 | Continuity | A motivated transition on every seam; persistent objects; no repeated adjacent camera moves |
-| Truth | Numbers traced; labels present; real UI; no label on an in-transit value; partial periods marked; no causal over-claim |
+| Truth | Numbers traced; labels present; real UI; no label on an in-transit value; partial periods marked; no causal over-claim; named actions animated, not captioned |
 | Sound sync | Hits on picture events; silence before the payoff; loudest on the payoff (from the measurements) |
 
 **Bar:** ship when every axis scores 8 or more and there are no P0 defects.
@@ -183,10 +185,20 @@ If an input is missing, the critic marks the affected items "unverifiable" rathe
 | Same film as last time | Structure inherited from an example | Treatment before opening any example; three structures; the 4-of-6 difference check |
 | Blank frames at a transition | Scene drawn at negative local time | Clamp local `t`; the next scene enters already moving |
 | Invented claim slipped in | No facts gate | FACTS.md; trace every number before the final render |
+| Brief silently not met; a caption instead of the action | Trade-offs with no priorities; the cheap route | Rank the priority sequence; a strip per named action; report every divergence |
+| Faces read as blurry patches or caricature | Marks too coarse at face scale; no facial structure | A finer face layer with designed profile curves; the same marks every frame; never enlarge the head |
+| Hands read as mittens; fused or extra fingers | Hand structure unspecified; outline too heavy at hand scale | Finger chains in the forearm's local frame, keyed on the timeline; a finer line layer |
+| A turn looks like a card flipping | One drawing scaled horizontally, in one plane | Per-part headings and foreshortening, or turnaround drawings; depth sort with hysteresis; lag computed from `t` |
+| Feet or paws slide; parts clip | Locomotion and contact unspecified | IK to planted targets; a slide check on planted feet; a contact crop that follows the world point |
+| Texture shimmers or boils | Texture regenerated every frame | Seeded marks cached in object space; the ground stays still; only grain and deliberate boil change |
+| Staging comes out mirrored | Storyboard vs world orientation | Declare screen direction; check frame 0 against the storyboard |
+| Growth reads as scaling | One model scaled up | Two or three matched time cuts with distinct stage markers |
+| The wrong object (a cocoon for a chrysalis) | An ambiguous noun | Name the right object and, once, the confusable one |
 
 ## 6. Iteration discipline
 
 - **A note is a symptom report, not a spec.** Translate it into the mechanism behind it before touching code. "Make it 3D" turned out to mean a camera rig plus a coordinate refactor.
+- **Scope every fix** with a fix card (briefs.md §9): what changes, what must not, and the shortcuts that would fake it. Prove the rest unchanged with the revision-scope diff (§1).
 - **One change per commit,** so a misread note can be reverted cleanly. Version every render, and keep the raw files of endings people liked.
 - **After the critic: one fix round, then one re-check.** Unbounded loops make different things worse, not things better.
 - **Don't claim a fix you haven't re-rendered and looked at.** Report what was checked, what was fixed, and which sheet shows it.

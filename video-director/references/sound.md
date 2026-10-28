@@ -94,7 +94,7 @@ Otherwise accept a rounding error of up to half a frame and note it.
 ## 4. SFX: vocabulary and placement
 
 - **Accent; don't narrate.**
-  - One action, one sound. Continuous motion stays silent.
+  - One action, one sound. Continuous motion stays silent, unless the sound is the material at work (a pen scribbling, a drag, a sweep): then drive its level and pitch from the same speed or progress curve that moves the picture.
   - About half the cuts get no sound.
   - Never use the same cue twice in a row.
 - **Use a film vocabulary, not a UI-event one:**

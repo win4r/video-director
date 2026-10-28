@@ -11,6 +11,7 @@ These templates are **fields, not examples**. Fill them from the user's topic. D
 6. Prompt for another agent (full and minimal)
 7. Parallel build brief
 8. Delivery report
+9. Fix card (revisions)
 
 ---
 
@@ -43,12 +44,15 @@ Constant the eye holds: <…> · Accent = <hex> means <one thing> · Type roles:
 
 ## Arc
 Hook (0–3 s): <…> · Turn at <t>: <…> · Hero moment = payoff at <t>: <…> (the one native move)
+Arc quantity: <what visibly changes> = <its value per beat> (loops: the invariant that holds)
 Ending answers the opening by <rhyme | reveal of scale | done right the second time | bookend | other>
+Actions that must be seen: <each one; a label never stands in for it>
+Cast (if any): <LABEL> · silhouette · anchors in order · how it moves · screen side
 Missing inputs and how they were handled: <no track → designed grid | no UI → promise acted in the user's world | VO ESTIMATED | …>
 
 ## Beat sheet
-| # | t start–end | What happens | Reads (in order) | Cued to | Camera | Transition out (+ reason) | Sound |
-|---|---|---|---|---|---|---|---|
+| # | t start–end | What happens | Reads (in order) | Cued to | Camera | Transition out (+ reason) | Sound | Guard (do not …) |
+|---|---|---|---|---|---|---|---|---|
 
 ## Sound plan
 Source: <user track | synthesized | silence> · Silences at <t> · Loudest hit at <t> (payoff) · Score growth: <…>
@@ -200,7 +204,7 @@ Banned: <8–12 specific defaults to avoid>, and anything that looks like a temp
 
 <structure>
 <BPM/bars or VO>. Hero moment at <t>: <…>.
-| t | what happens | read | cued to | transition out | sound |
+| t | what happens | read | cued to | transition out | sound | guard |
 </structure>
 
 <truth>
@@ -222,7 +226,8 @@ Real UI only (capture it); no invented features, quotes, or endorsements.
 
 <checks>
 Before the full render: stills at <t1, t2, …> (+0.3 s after each beat) and a 360 px sheet; fix the 3 worst problems.
-After: pop/flash scan, frozen stretches, cuts vs plan, loudness, loop seam. Independent critic restates the idea from frames.
+After: pop/flash scan, frozen stretches, cuts vs plan, loudness, loop seam. A strip for each action that must be seen.
+Independent critic restates the idea from frames. Report every divergence from this brief and anything unverified.
 </checks>
 
 <start>
@@ -242,6 +247,9 @@ Feel like <benchmark>, not <anti-reference>. <Ask first | Don't ask; log decisio
 - **Numbers over adjectives:** "0.6 s ease-out, 64 px", not "smooth, big".
 - **A named reference over vibes:** "Linear launch film", not "premium modern".
 - **Fewer asks than bans.** A list of a dozen effects turns into a kitchen sink.
+- **Guards beside their beats.** A "do not" goes where the shortcut would happen ("do not simply fade in a finished caterpillar").
+- **Name the right object.** Where a noun is confusable, name it and, once, the wrong one ("a chrysalis, not a silk cocoon").
+- **Rank the priorities.** Mark the one sequence that matters most ("prioritize its drawing, staging and motion"), so trade-offs fall the right way.
 - **Pick one interaction mode:** a plan gate *or* declared autonomy. Leaving it unstated produces either a stall or a surprise.
 - **Treat any example storyboard as a starting point, not a template.** Say so in the prompt.
 
@@ -266,6 +274,23 @@ Never claim a match you haven't viewed.
 **Checks:** hook <copy> legible at <t> s, <px> px, <n>:1 · terms said/shown <n/n> · loudness <I> LUFS / <TP> dBTP · cuts vs plan max <n> f · pops <n> (explained: …) · frozen holds <list> · read-time pass <n/n> · critic scores <…>
 **DECISIONs:** <list: overturn any in one reply>
 **Real vs illustrative:** <…> · **Permissions needed:** <logos, likenesses, music>
+**Actions shown:** <each action the brief names → the strip or time that shows it> · **Divergences from the brief:** <each, with the reason, or "none">
 **Weakest shot:** <id + why> · **Not verified:** <e.g. audio measured, not heard; 9:16 version not reviewed>
 **Would fix next:** <one line>
 ```
+
+## 9. Fix card (revisions)
+
+Write one card per failure. Several failures get one take each, structure and motion before surface detail.
+
+```
+DIAGNOSIS    <the failure→fix row (quality.md §5) and its likely mechanism>
+SCOPE        <timecodes · shot · element>
+KEEP         <style, composition, camera, timing, design: everything that must not change>
+FAILURE NOW  <how it looks today>
+TARGET       <named, observable features>
+SHORTCUTS    <ways to fake it that are forbidden: enlarging, moving the camera, oversharpening, a change of style, added glow>
+PROOF        <frames inside the scope to look at · frames outside it, diffed before encoding: identical>
+```
+
+As a prompt for another agent: "Change only <SCOPE>. Keep <KEEP> unchanged, but <change> so that <TARGET>. Avoid <FAILURE NOW>. Keep it stable in motion: no flicker, distortion or popping. Don't get there by <SHORTCUTS>. Everything else stays unchanged." Several cards become gated fixes: make fix 1, show its proof, then start fix 2.

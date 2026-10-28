@@ -1,6 +1,6 @@
 # video-director
 
-A Claude skill for making short videos written as code (HTML, Canvas, SVG, Three.js, GSAP or Remotion) and rendered frame by frame to MP4. It covers launch films, promos, explainers, data stories, kinetic type, loops and social reels.
+A Claude skill for making short videos written as code (HTML, Canvas, SVG, Three.js, GSAP or Remotion) and rendered frame by frame to MP4. It covers launch films, promos, explainers, data stories, kinetic type, character and illustrated shorts, loops and social reels.
 
 The skill treats the model as a director: plan the film in numbers, build it deterministically, then measure what it can't watch or hear. It holds principles with their reasons, a workflow with a gate at each phase, and two QA scripts. It deliberately ships no shot library to copy.
 
@@ -57,7 +57,7 @@ Each round ran the three briefs once per configuration. Script checks graded the
 | 1 | Skill vs no skill | 28/28 vs 25/28 | 2–1 for the skill | about 2× the time and tokens |
 | 2 | Current skill vs round-1 skill | 30/32 vs 26/32 | 3–0 for the current skill | about the same |
 
-Round 1 showed the skill catching craft basics (a black first frame, text under the Reels caption, quiet audio). It also showed two gaps: a tagline held back until 11 s, and an explainer that never said "false positive". Round 2 added the rules that fixed them. The hook and any call to action are on screen by 3 s with the sound off, at measured size and contrast. The terms the audience searches for are said and shown. Labels never sit on numbers that are still counting. With one run per configuration, treat these as a direction, not a measurement.
+Round 1 showed the skill catching craft basics (a black first frame, text under the Reels caption, quiet audio). It also showed two gaps: a tagline held back until 11 s, and an explainer that never said "false positive". Round 2 added the rules that fixed them. The hook and any call to action are on screen by 3 s with the sound off, at measured size and contrast. The terms the audience searches for are said and shown. Labels never sit on numbers that are still counting. With one run per configuration, treat these as a direction, not a measurement. The guidance for character and illustrated films, revisions and live pages was added after round 2 and hasn't been evaluated yet.
 
 ## Credits
 
@@ -71,6 +71,8 @@ The skill paraphrases and synthesizes the methodology of these public repositori
 - [lemomo-ai/lemo-opuscar](https://github.com/lemomo-ai/lemo-opuscar)
 - [Vincentwei1021/video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft)
 - [cth9191/animate](https://github.com/cth9191/animate)
+
+The guidance for character and illustrated films, scoped revisions and live pages comes from the maintainer's own production notes on about 30 coded animation projects.
 
 ## License
 

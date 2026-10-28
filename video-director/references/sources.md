@@ -13,4 +13,6 @@ This skill synthesizes the methodology of eight public repositories. Everything 
 | github.com/Vincentwei1021/video-shotcraft | Rules as case law; energy arc; beat-grid fitting; independent clean-context review; perceptibility thresholds |
 | github.com/cth9191/animate | Format grammar with coupling rules; story invariants; numeric arc checks; banned defaults |
 
+One more source covers coded character and illustrated films: the maintainer's own production notes from about 30 projects (July–October 2026). It contributed the medium described as a process with texture bound to objects, the measurable arc, identity anchors and screen direction, turns, contacts, faces and hands, guards beside their beats, the visible-action check and divergence report, the fix card with its out-of-scope diff, certainty tags, and live pages. Its prompting of pixel video models is left to a separate skill.
+
 Two practices found in the sources were deliberately left out: removing watermarks from AI-generated faces, and downloading third-party media with yt_dlp.

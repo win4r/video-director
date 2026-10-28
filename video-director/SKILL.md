@@ -1,6 +1,6 @@
 ---
 name: video-director
-description: Direct, build and verify short videos that are written as code and rendered frame by frame (HTML/Canvas/SVG/Three.js, GSAP or Remotion → MP4). Covers motion graphics, product launch films, promos, explainers, kinetic typography, data stories, lyric and music videos, animated loops and social reels. Use this skill whenever someone asks to make, animate, storyboard, prompt for, review or fix a video, trailer, reel, intro, launch film, animated explainer or "motion graphics", even from a one-line request like "make a 15s video for my app" that never mentions code. Also use it when an existing coded video feels slow, out of sync, hard to read, or like generic AI output. It does not cover editing live-action footage or prompting pixel video models, though its story and timing principles still apply to those.
+description: Direct, build and verify short videos that are written as code and rendered frame by frame (HTML/Canvas/SVG/Three.js, GSAP or Remotion → MP4 or a live page). Covers motion graphics, product launch films, promos, explainers, kinetic typography, data stories, lyric and music videos, character and illustrated shorts, animated loops and social reels. Use this skill whenever someone asks to make, animate, storyboard, prompt for, review or fix a video, trailer, reel, intro, launch film, animated explainer or "motion graphics", even from a one-line request like "make a 15s video for my app" that never mentions code. Also use it when an existing coded video feels slow, out of sync, hard to read, or like generic AI output. It does not cover editing live-action footage or prompting pixel video models, though its story and timing principles still apply to those.
 ---
 
 # Video Director
@@ -43,7 +43,9 @@ Each phase produces a cheap artifact that can be checked before the next, more e
 **Fixing or reviewing an existing video:**
 1. Run `scripts/qa_video.py` and the critic rubric in `references/quality.md`.
 2. Translate each complaint into the mechanism behind it. A note like "feels cheap" usually means linear timing, an unlit flat stage, or text that is too small.
-3. Fix the worst three issues, re-render, and look again.
+3. Write a fix card for each (`references/briefs.md` §9): the scope by timecode, what must not change, the failure as it looks now, the observable target, and the shortcuts that would fake it (enlarging, moving the camera, oversharpening, a change of style).
+4. Fix the worst three, one per take, structure and motion before surface. Re-render and look again.
+5. Diff every frame outside the scope against the previous version *before encoding*: they must be pixel-identical. Don't diff the two MP4s, because the encoder spreads differences on both sides of an edit. For a fix scoped to one element rather than a time range, mask that element's bounds in both versions and diff the rest.
 
 ### Interaction mode (decide at intake)
 
@@ -62,7 +64,7 @@ Both modes ask at most one round of questions. Each extra round costs more than 
 |---|---|
 | Purpose, audience and where it plays | Social feed, muted autoplay |
 | The one thing it must say | Draft it yourself and read it back in one sentence; a wrong subject is the most expensive mistake |
-| Duration, aspect, fps | 30–45 s (15–20 s for loops). Aspect by platform: 9:16 at 1080×1920 for TikTok, Reels and Shorts; 4:5 at 1080×1350 or 1:1 for Instagram and LinkedIn feeds; 16:9 or 1:1 for X and YouTube; 16:9 for web embeds. fps by register |
+| Duration, aspect, fps | 30–45 s (15–20 s for loops, 8–12 s for a single-shot vignette). Aspect by platform: 9:16 at 1080×1920 for TikTok, Reels and Shorts; 4:5 at 1080×1350 or 1:1 for Instagram and LinkedIn feeds; 16:9 or 1:1 for X and YouTube; 16:9 for web embeds. fps by register |
 | Locked copy and the source of truth for facts | No numbers on screen without a source |
 | Real assets: logo, screenshots, product URL or repo, brand fonts and colours, voice, music | Capture real UI yourself; never invent screens |
 | A reference anchor (a film, a brand's launch video, an era) | Pick a benchmark yourself (see principle 12) |
@@ -78,6 +80,7 @@ Both modes ask at most one round of questions. Each extra round costs more than 
   - If the product exists, ask once for a screenshot or URL.
   - Otherwise, act out the promise in the user's world: the problem, an object metaphor, a before/after. Keep claims to what the brief states.
   - Abstract type → wordmark → tagline is the fallback, not the plan.
+- **No photos or 3D files of a physical product.** Build a procedural stand-in that claims nothing about the product's details, say so in the report, and leave a folder the real assets can drop into.
 - **No VO yet.** Write the script and estimate timings at about 2.5–2.8 words/s. Mark them `ESTIMATED` and replace them with real word timestamps before phase 3.
 - **No facts source.** If you can browse, research primary sources (official bodies, government, the company's own pages) and quote them with dates in FACTS.md. Otherwise keep numbers off screen.
   - A tagline is not a claim.
@@ -172,8 +175,9 @@ Give the eye something stable to hold: a hero, a stage, a page, or a shape that 
   - a rhyme;
   - a reveal of scale;
   - the subject doing the thing right the second time.
+- Carry the change in a visible quantity with a value per beat: the gap between two characters (3 m → 2 m → 1 m → side by side), a size, a count, the camera's scale. A quantity can be staged and checked; a mood word can't.
 
-*Check:* you can name the constant, the hero moment and its timestamp, and how the ending answers the opening.
+*Check:* you can name the constant, the arc's quantity and its values, the hero moment and its timestamp, and how the ending answers the opening.
 
 **3. Cue every reveal to something.**
 Avoid the two named failures:
@@ -246,7 +250,7 @@ Code's signature flaw is moving every part at once, on the same curve, by the sa
 *Check:* look at a strip across each key move: is there anticipation, is anything twinned, does it land?
 
 **10. Design the sound on the same clock.**
-- Accent; don't narrate. Continuous motion stays silent, and about half the cuts get no sound.
+- Accent; don't narrate. Continuous motion stays silent (unless the sound is the material at work, like a pen scribbling, driven by the same curve as the picture), and about half the cuts get no sound.
 - Place every cue by its measured peak, not the start of its file.
 - Put real silence before the payoff and the loudest moment on it.
 - The busiest moment is *not* the loudest: peak density sits just before the silence.
@@ -260,6 +264,8 @@ Code's signature flaw is moving every part at once, on the same curve, by the sa
 - An animated counter is a graphic; only its end value is a fact, and it must stop on the caption's value. A label that names a value (a month, "in 0.4 s") appears only once the counter has stopped on it, so no paused frame pairs a label with a wrong number.
 - Use the product's real UI, captured, not redrawn from memory.
 - Don't invent features, quotes or endorsements.
+- Design original characters instead of protected ones, and say so. Use real logos and wordmarks only from supplied files.
+- Show actions; don't label them. A caption or badge never stands in for an action the brief asks to see.
 - Don't claim "one prompt" if it took ten.
 
 *Check:* every on-screen number traces to a row in FACTS.md or carries a label.
@@ -299,6 +305,7 @@ Plain words build the intuition, but the term is what the viewer will type into 
   - Rendering the same frame twice, or out of order, gives identical pixels.
 - **One timeline file.** It drives picture, SFX, score, captions and checks. Bare frame numbers in components are a bug; reference named beats instead.
 - **For HTML, expose a page contract** so tools can query the film: `DUR`, `FPS`, `seek(t)`, a `READY` promise, and optionally `TEXTS(t)` for read checks and `CUES` exported from the timeline. Remotion has its own renderer and equivalents.
+- **Live pages** (played in real time or interactive) keep `seek(t)` as the only source of state and add a playback clock, audio started on a user gesture, controls outside the artwork and a performance pass (`references/craft.md` §14).
 - **Choose the engine to fit the project.**
   - Use what the project already uses.
   - Otherwise:
@@ -320,7 +327,7 @@ When the request is a one-liner, expand it into this brief yourself, filling gap
              Look in numbers: hex roles, one accent and its meaning, type roles, motion law
              Banned: the specific defaults this film must avoid
 <structure>  Duration, aspect, fps, clock (BPM/bars or VO). Timestamped beats:
-             t | what happens | read | cue | transition out | sound. Hero moment at t=…
+             t | what happens | read | cue | transition out | sound | guard. Hero moment at t=…
 <truth>      Locked copy; facts source; what may be illustrative and how it is labelled
 <build>      Engine + deterministic contract + capture/encode spec + deliverables
 <checks>     Stills to review at listed times; numeric gates; independent critic
@@ -332,6 +339,7 @@ When the request is a one-liner, expand it into this brief yourself, filling gap
 - Write "Linear launch film" rather than "premium modern".
 - Stacking adjectives ("think big, go all out") gives results nobody can reproduce.
 - Listing a dozen effects gives a kitchen sink. A strong brief bans more than it asks for.
+- Put each "do not" beside the beat that invites the shortcut ("do not slide the whole body across the leaf"). `Banned` is for the film-wide defaults.
 
 ## Quality gates
 
@@ -362,6 +370,8 @@ When the request is a one-liner, expand it into this brief yourself, filling gap
 - [ ] The loudest moment is the payoff and real silence precedes it; −14 LUFS ±1 and true peak ≤ −1 dBTP on the delivered file
 - [ ] Every term is said (if narrated) and shown, verbatim
 - [ ] Every number traces to FACTS.md or is labelled; no label ever sits on an in-transit counter value; no invented UI
+- [ ] Every action the brief names is visibly animated, shown on a strip; every divergence from the brief is reported
+- [ ] For revisions, every frame outside the fix's scope is pixel-identical to the previous render, compared before encoding
 - [ ] For loops, the seam matches in position and velocity
 - [ ] The report states the DECISIONs, the weakest shot, and what was measured rather than seen or heard
 
@@ -369,8 +379,8 @@ When the request is a one-liner, expand it into this brief yourself, filling gap
 
 | Read | When |
 |---|---|
-| `references/briefs.md` | Phases 1–2: the TREATMENT, timeline and FACTS templates. Later: shot specs, a style spec, a prompt for another agent, the critic brief, the delivery report |
-| `references/craft.md` | Phase 1: §1–3 (register presets, reading time, pace). Building: easing and springs, type and layout floors, camera, transitions, acting, data honesty, engineering and capture |
+| `references/briefs.md` | Phases 1–2: the TREATMENT, timeline and FACTS templates. Later: shot specs, a style spec, a prompt for another agent, the critic brief, the delivery report, the fix card for revisions |
+| `references/craft.md` | Phase 1: §1–3 (register presets and media, reading time, pace). Building: easing and springs, type and layout floors, camera, transitions, acting, data honesty, engineering and capture, live pages |
 | `references/sound.md` | Phase 1: §1–2 (choose the clock; pick or design the grid). Later: VO timing, SFX placement, silence, mix and loudness |
 | `references/quality.md` | Phase 1: §3 (the AI tells to ban). Before calling anything done: check catalogue, critic rubric, failure→fix table |
 | `scripts/check_timeline.py` | Gate of phase 2, and again after any retime |

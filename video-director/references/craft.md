@@ -18,6 +18,7 @@ All values assume a canvas whose short side is 1080 px. Scale them proportionall
 11. Data, explainers, honesty in graphics
 12. Engineering: determinism, capture, blur, encode
 13. Multi-format and parallel builds
+14. Live pages
 
 ---
 
@@ -38,6 +39,12 @@ Mapping the brand onto two axes refines the preset:
 - **Tone** (serious ↔ playful) sets how much paths curve and how much secondary action there is.
 
 Self-check: three words describing the motion should match three words describing the brand.
+
+**Handmade media.** Describe the medium as the process that makes its marks, not by its name: broken-colour oil strokes, layered dark and pale ink washes, crooked ballpoint lines with pencil hatching. Then:
+- seed the marks in each object's own space, so they move with their subject;
+- the ground (paper, canvas, board) never moves and is never regenerated;
+- effects come from the medium: a ripple built from the painting's own strokes, not a crisp digital ring;
+- line boil stays subtle, and silhouettes and markings stay stable through it.
 
 ## 2. Reading time and holds
 
@@ -79,6 +86,7 @@ Text that animates in counts as visible only once complete. A typewriter effect 
   - Whatever the arc, the hook text is legible by 3 s (SKILL.md principle 1); the first section opens *with* it, not toward it.
   - **Promo:** brand open 8–12% → single-hero showcase 12–15% → feature climb 55–65%, alternating high and low energy with a breathing card every 1–2 features → finale at peak energy 13–16%.
   - **Narrated launch:** problem 8–10% → agitate 8–10% → thesis 5% → product 30–35% → proof 20–25% → contrast 10% → call to action 8–10%.
+  - **Vignette** (8–12 s, one shot): a stable state ~25% → an agent disturbs it (a cursor, a gust, a decision) and reactions spread with a delay ~45% → settle and hold ~30%.
 - **Something new every shot.** A shot with no event reads as a bug, so a beat needs an event, not just motion.
 
 ## 4. Easing, springs, staggers
@@ -117,6 +125,7 @@ Rules for using them:
 - **Anticipation:** compute it in pixels at delivery size. A 4 px wind-up is invisible; 30–50 px reads. Hand actions take 0.15–0.25 s.
 - **Children lag parents** by 2–4 frames. Scale, rotation and shadow settle *after* position.
 - **Avoid twinning:** code copies values exactly, so offset phases, seeds and amplitudes.
+- **Propagation and tempo:** a disturbance reaches neighbours with a delay that grows with distance, and their response shrinks with it. Contrast tempos (slow drift against brief darts) so motion reads as behaviour.
 - **Velocity-driven secondary motion:** derive squash, trails and lean from v = x(t) − x(t − Δ). Don't run separate clocks.
 - **Settles:** move by a per-frame law, never in 3-frame steps.
 - **Hard limits that read wrong past the threshold** *(single case each)*:
@@ -178,7 +187,7 @@ Rules for using them:
   - at most one tint;
   - the value order (what is lightest or darkest).
 
-  The accent stays small and goes to the hero. A third hue is almost always a mistake.
+  The accent stays small and goes to the hero. In graphic registers a third hue is almost always a mistake. An illustrated world may carry 3–5 named colours from its setting, with the strongest still reserved for one moment.
 - **Grounds:** a hue-tinted dark, never #000. No large areas of pure #fff.
 - **Colour flips:** if a film flips its ground colour, every flip is a story turn.
 - **Contrast:** text ≥ 4.5:1 against what is actually behind it. Measure with the grade off as well as on, because a full-frame grade fools contrast samplers.
@@ -229,15 +238,19 @@ Budgets and rules:
 
 ## 10. Acting (characters)
 
-- **One drawing function** per character keeps it on-model. Emotions blend through keyframes; never switch a pose inside an `if`.
+- **On-model:** one drawing function per character, reading one constants module: silhouette, 3–5 anchors in order (hair → top → bottom → footwear → prop), palette, proportions. Name characters by LABEL in briefs, never by pronoun across shots. Emotions blend through keyframes; never switch a pose inside an `if`.
+- **Screen direction:** declare who is screen-left and who is screen-right in the treatment, and check frame 0 against the storyboard. Mapping a storyboard into a 3D world mirrors it easily.
+- **Turns have volume:** the head leads, the shoulders follow, the hips come last; hair and costume lag; limbs change depth order. Use per-part headings and foreshortening (or turnaround drawings) and depth-sort with a little hysteresis. One drawing scaled horizontally reads as a card flipping.
+- **Faces and hands at small scale:** give them a finer layer than the body and draw their landmarks: eyes, nose bridge, lips, jawline, hairline; a thumb set at an angle, four graded fingers with gaps, a wrist narrower than the palm. Never fix them by enlarging the head or hiding the hands.
 - **Anticipation → action → follow-through.** Show the thought: the eyes move first. A strong key pose reads as a still.
 - **Exaggerate:** subtle reads as nothing at phone size. Check eyebrow direction at final size, because worried and angry are one flip apart.
 - **Contacts:**
   - held props sit between the palms;
-  - feet meet the ground;
+  - feet meet the ground, and a planted foot or paw stays put (IK to planted targets), so locomotion never slides;
   - a rolling object turns by distance ÷ radius.
 
-  Check contacts with a crop that follows the world point through the camera.
+  Check contacts with a crop that follows the world point through the camera. A planted foot's world position should move by under ~1 px while it is planted.
+- **Growth isn't scaling:** show development as two or three matched time cuts with distinct stage markers, never one model scaled up.
 - **Idles:** lock idles to the BPM, even without music; use half-time for ballads. Nothing stands smiling while nothing happens.
 - **Cause, then reaction,** in sequence, with time for the reaction. Pay off every set-up.
 
@@ -252,7 +265,7 @@ Budgets and rules:
   - An honesty label isn't chrome. Put it *on or beside the graphic it qualifies*, in the film's caption style, at ≥ 24 px.
   - It never goes in a screen corner or a HUD strip.
 - **Simulate the real thing:** a random walk is an actual random walk, and a proof's mechanism maps to its operations.
-- **Mark interpretation as interpretation.**
+- **Mark interpretation as interpretation.** In science pieces, tag certainty on screen and in the voice (well attested or debated; evidence or hypothesis), and say when time is compressed ("Life cycle shown in time-lapse").
 - **Attribute single-source claims** on screen and in the voice.
 - **Image resolution ceilings:**
   - photos ≥ 1 source px per screen px;
@@ -304,6 +317,7 @@ window.CUES = timeline;       // exported from the single timeline, for QA and s
 **Texture:**
 - Add grain in ffmpeg (`noise` or an overlay) rather than in the page. Per-frame page grain makes every frame incompressible.
 - If grain must live in the page, re-seed it at about 12 Hz, not every frame.
+- Grain and deliberate line boil are the only textures that change over time. Paper, canvas and brush marks belong to the world: generate them once from a seed, cache them in object space, and never regenerate them per frame, or they boil.
 
 **Encode:**
 - H.264, yuv420p, BT.709 tags, TV range.
@@ -326,3 +340,11 @@ window.CUES = timeline;       // exported from the single timeline, for QA and s
   - shared files are read-only;
   - each agent's brief contains the approved panels, the style spec, its time range and cue names, the bridge objects that must be in frame at its boundaries, and the determinism rules;
   - the orchestrator builds one reference section first, then renders and checks every seam itself.
+
+## 14. Live pages
+
+Some films ship as a page that plays in real time or lets the viewer interact. The determinism contract still holds; only playback changes.
+- **Clock:** playback reads one clock and calls `seek(t)`. Nothing advances per frame, so the film is independent of frame rate, and the same page still captures to MP4.
+- **Audio** starts on a user gesture, because browsers block it otherwise. It never delays the picture, it is rendered offline for the MP4, and the film works silent.
+- **Controls** sit outside the artwork.
+- **Performance pass:** benchmark each scene first, then cut GPU, CPU and memory cost without changing content, structure or timing. Report the frame rate you measured and on what hardware, or say that it wasn't measured on a real GPU.
