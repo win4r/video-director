@@ -1,10 +1,12 @@
 # video-director
 
+**Primary model: Claude Opus 5.5 · For Claude Code**
+
 **English** | [简体中文](README.zh-CN.md)
 
-A Claude skill for making short videos written as code (HTML, Canvas, SVG, Three.js, GSAP or Remotion) and rendered frame by frame to MP4. It covers launch films, promos, explainers, data stories, kinetic type, character and illustrated shorts, loops and social reels.
+**video-director is built primarily for Claude Opus 5.5 in Claude Code.** It guides the model to create short videos as code (HTML, Canvas, SVG, Three.js, GSAP or Remotion), rendered frame by frame to MP4. It covers launch films, promos, explainers, data stories, kinetic type, character and illustrated shorts, loops and social reels.
 
-The skill treats the model as a director: plan the film in numbers, build it deterministically, then measure what it can't watch or hear. It holds principles with their reasons, a workflow with a gate at each phase, and two QA scripts. It deliberately ships no shot library to copy.
+The skill treats **Claude Opus 5.5** as the director and coding agent: plan the film in numbers, build it deterministically, then measure what it can't watch or hear. It holds principles with their reasons, a workflow with a gate at each phase, and two QA scripts. It deliberately ships no shot library to copy.
 
 ## What's inside
 
@@ -16,9 +18,15 @@ The skill treats the model as a director: plan the film in numbers, build it det
 | [`video-director/evals/`](video-director/evals/) | Three test briefs with graders |
 | [`METHODOLOGY.md`](METHODOLOGY.md) | The research the skill was distilled from: what drives quality across eight public repositories |
 
+## Recommended model: Claude Opus 5.5
+
+**Recommended setup: Claude Code with Claude Opus 5.5 selected.** Give Opus 5.5 a video brief; the skill guides it through planning, writing the animation code, rendering, checking the result and revising specific defects. Other capable coding agents can also follow the workflow, but **Claude Opus 5.5 is the primary intended model**.
+
+This is an instruction-and-QA skill, not a bundled model or hosted video-generation service. Its output still depends on the available code execution and rendering tools.
+
 ## Install
 
-For Claude Code, copy the skill folder into your personal skills (or into a project's `.claude/skills/`):
+In Claude Code, select **Claude Opus 5.5** and copy the skill folder into your personal skills (or into a project's `.claude/skills/`):
 
 ```bash
 git clone https://github.com/win4r/video-director.git
@@ -34,7 +42,7 @@ The scripts need `ffmpeg`/`ffprobe` and Python 3 with `numpy` and `Pillow`. Rend
 
 ## Use
 
-Ask for a video in plain words; the skill triggers on its own, even from a one-liner:
+With **Claude Opus 5.5** selected in Claude Code, ask for a video in plain words; the skill is designed to respond even to a one-liner:
 
 - "Make a 15 second looping launch video for our CLI. Everything you need is in the README."
 - "I need a ~30 second narrated explainer on how a bloom filter works, 16:9."
@@ -59,7 +67,7 @@ Each round ran the three briefs once per configuration. Script checks graded the
 | 1 | Skill vs no skill | 28/28 vs 25/28 | 2–1 for the skill | about 2× the time and tokens |
 | 2 | Current skill vs round-1 skill | 30/32 vs 26/32 | 3–0 for the current skill | about the same |
 
-Round 1 showed the skill catching craft basics (a black first frame, text under the Reels caption, quiet audio). It also showed two gaps: a tagline held back until 11 s, and an explainer that never said "false positive". Round 2 added the rules that fixed them. The hook and any call to action are on screen by 3 s with the sound off, at measured size and contrast. The terms the audience searches for are said and shown. Labels never sit on numbers that are still counting. With one run per configuration, treat these as a direction, not a measurement. The guidance for character and illustrated films, revisions and live pages was added after round 2 and hasn't been evaluated yet.
+Round 1 showed the skill catching craft basics (a black first frame, text under the Reels caption, quiet audio). It also showed two gaps: a tagline held back until 11 s, and an explainer that never said "false positive". Round 2 added the rules that fixed them. The hook and any call to action are on screen by 3 s with the sound off, at measured size and contrast. The terms the audience searches for are said and shown. Labels never sit on numbers that are still counting. With one run per configuration, treat these as a direction, not a measurement. The guidance for character and illustrated films, revisions and live pages was added after round 2 and hasn't been evaluated yet. These results do not establish a controlled comparison of Claude Opus 5.5 against other models.
 
 ## License
 
