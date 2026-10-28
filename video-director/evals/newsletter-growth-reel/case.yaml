@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: newsletter-growth-reel
+expected_outcome: |
+  A ~20 s 1080x1920 MP4 whose every number matches subscribers.csv, which does not misrepresent the June Hacker News spike as organic steady growth, and whose text is readable on a phone.
+context:
+  scaffold_script: place-files.sh

@@ -1,0 +1,5 @@
+.DS_Store
+__pycache__/
+*.pyc
+# eval runs: rendered films, frames and node_modules (~380 MB); benchmarks live there too
+video-director-workspace/

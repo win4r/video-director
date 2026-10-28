@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: bloom-filter-explainer
+expected_outcome: |
+  A ~30 s 16:9 MP4 with a synthesized voiceover that correctly explains bloom filters (bit array, k hash functions, no false negatives, possible false positives), with visuals synced to the narration and readable on-screen text.

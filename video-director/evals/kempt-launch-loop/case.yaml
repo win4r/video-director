@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: kempt-launch-loop
+expected_outcome: |
+  A ~15 s MP4 that loops seamlessly, is sized for X, has an original soundtrack, presents kempt with its real brand colours, and only states facts found in README.md (e.g. 1 GB in 2.1 s on an M3 MacBook Air).
+context:
+  scaffold_script: place-files.sh
