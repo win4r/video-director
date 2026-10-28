@@ -19,11 +19,13 @@ Automated gates catch what is *broken*, not what is *bad*. Run them first so the
 
 | Check | How | Catches | Pass |
 |---|---|---|---|
-| Timeline | `scripts/check_timeline.py` before any code and after any retime | Gaps between scenes; beats outside the film; loops that aren't whole bars; SFX pointing at missing beats; hero spent early; no silence before it; reads and captions too short; ESTIMATED VO | 0 errors; every warning resolved or deliberate |
+| Timeline | `scripts/check_timeline.py` before any code and after any retime | Gaps between scenes; beats outside the film; loops that aren't whole bars; SFX pointing at missing beats; hero spent early; no silence before it; reads, texts and captions too short; ESTIMATED VO | 0 errors; every warning resolved or deliberate |
+| Hook (first 3 s) | `check_timeline.py`: the `hook` text (and any `cta`) legible by 3 s, declared `px` at its floor. `qa_video.py`: rendered size and contrast inside each `box`, plus `hook_sheet.jpg` | A tagline saved for the payoff; a CTA only on the end card; small, dim or muted CTA type; a hook that needs the sound | Legible by 3.0 s; hook ≥ 84 px, CTA and terms ≥ 48 px (font px at a 1080 short side); ≥ 7:1 at full opacity; from the hook sheet alone, a muted viewer can say what it is and what to do |
+| Terms | `check_timeline.py` matches `terms` against the VO and the on-screen text and captions; ASR on the line that says each one | Explanations that never name the thing; a softer synonym in place of the standard term | Every term said (if narrated) and shown, verbatim |
 | Determinism | Render a set of frames forward, then in reverse order, and diff them | Hidden state, unseeded RNG, timers | Identical pixels |
 | Page errors | Capture the console and page errors during render; abort on any | Silent JS failures, missing assets | Zero |
 | Fonts/assets ready | Await `READY` / `document.fonts.ready` before the first capture | Fallback fonts and half-loaded images in early frames | Fonts present in frame 0 |
-| Read time | Sample `TEXTS(t)` every frame; measure how long each string stays fully visible | Text cut before it can be read; text never fully in frame | Every string ≥ its formula (craft.md §2) |
+| Read time | `check_timeline.py` holds every `texts[]` entry to the formula; on the render, sample `TEXTS(t)` every frame and measure how long each string stays fully visible | Text cut before it can be read; text never fully in frame | Every string ≥ its formula (craft.md §2) |
 | Text bounds | Trace `fillText` and DOM boxes into screen space | Cropped, overlapping or under-UI text (it looks fine at thumbnail size) | Inside the safe area, no overlaps |
 | Phone legibility | Contact sheet at 360 px wide | Text too small for a phone feed | Every read is legible |
 | Frame 0 | Luminance and contrast of the first frame | Black or blank thumbnails, and half-built first compositions | Not flat; looks finished |
@@ -38,10 +40,10 @@ Automated gates catch what is *broken*, not what is *bad*. Run them first so the
 | Anchor stability | Track the hero's screen position | A hero that drifts in the fast section | ≥ 95% of frames within ~40 px of its anchor |
 | ASR on VO | Whisper on each TTS line and on the final mix | Mispronunciations, garbled numbers | Matches the script |
 | Resolution | Source pixels per screen pixel for every image | Upscaled mush | ≥ 1 for photos |
-| Facts | Every on-screen number and claim traced to a FACTS.md row | Invented or overstated claims | 100% traced or labelled |
+| Facts | Every on-screen number and claim traced to a FACTS.md row; every core fact the brief names (promise, CTA, the headline number) is present; strips across every counter | Invented or overstated claims; a check that passes because nothing is shown; a label on an in-transit counter value; an unfinished period shown as complete; timing written as cause | 100% traced or labelled; core facts on screen; no paused frame pairs a label with a wrong value; partial periods say "to date" |
 | Leaks | Grep committed files and rendered text for process words, placeholders ("Acme", "lorem", "Your headline"), debug labels, card names | Template residue | Zero; also *watch the last seconds*, because text drawn into images can't be grepped |
 
-`scripts/qa_video.py` covers frame 0, pops/flashes, frozen and flat frames, cuts vs plan, loudness, dramatic arc, loop seam and the contact sheets. The page-level checks (determinism, read time, text bounds) need the page contract (craft.md §12).
+`scripts/check_timeline.py` covers the timeline, the hook timing and declared sizes, text holds and terms. `scripts/qa_video.py` covers the measured hook, CTA and term text, frame 0, pops/flashes, frozen and flat frames, cuts vs plan, loudness, dramatic arc, loop seam and the contact sheets. The page-level checks (determinism, read time, text bounds) need the page contract (craft.md §12).
 
 ## 2. Visual review protocol
 
@@ -113,7 +115,7 @@ These are what a model produces when unconstrained. Ban them unless the brief de
 ## 4. Independent critic: brief and rubric
 
 **Spawn a fresh subagent** that never saw the build or its reasoning. Give it:
-- the rendered file, or the sheets and strips;
+- the rendered file, or the sheets and strips, always including `hook_sheet.jpg`;
 - the brief or treatment;
 - the timeline;
 - FACTS.md;
@@ -136,14 +138,14 @@ If an input is missing, the critic marks the affected items "unverifiable" rathe
 
 | Axis | Look for |
 |---|---|
-| Hook | First read lands within 2–3 s; frame 0 finished |
-| Clarity | One idea; the muted one-sentence test; reads given enough time |
+| Hook | From the hook sheet alone, sound off: what it is and what to do, by 3 s. Hook ≥ 84 px, CTA ≥ 48 px, ≥ 7:1; frame 0 finished. A tagline first seen after 3 s caps this axis at 5 |
+| Clarity | One idea; the muted one-sentence test; reads given enough time; the audience's terms are said and shown, not paraphrased away |
 | Readability | 360 px legibility; holds; no overprinting during swaps |
 | Motion quality | Easing by role, weight, anticipation, no twinning, landings |
 | Rhythm and variety | Cued reveals; acceleration plus a breath; no dead or flat stretches; new information every 2–4 s |
 | Composition and look | One focal point, light and depth, accent discipline, poster holds, none of the tells |
 | Continuity | A motivated transition on every seam; persistent objects; no repeated adjacent camera moves |
-| Truth | Numbers traced; labels present; real UI |
+| Truth | Numbers traced; labels present; real UI; no label on an in-transit value; partial periods marked; no causal over-claim |
 | Sound sync | Hits on picture events; silence before the payoff; loudest on the payoff (from the measurements) |
 
 **Bar:** ship when every axis scores 8 or more and there are no P0 defects.
@@ -163,6 +165,8 @@ If an input is missing, the critic marks the affected items "unverifiable" rathe
 | "Busy but nothing lands" | The screensaver: endless independent loops | Bound every move; let one element keep life; end motion before the cut |
 | "Too fast" (the most common note) | Reads overlapping; holds under the formula | Add hold time; cut words per screen; one read at a time |
 | "Cheap" | Linear timing, opacity-only entrances, flat unlit stage, small text | Easing by role with travel, a light on the hero, layered depth, bigger type |
+| "Didn't know what it was until the end" | The tagline saved for the hero reveal; the CTA only on the end card | Promise and CTA on screen by 3 s at their floors; let the hero *prove* the promise |
+| "Explains it but never names it" | Writing for the ear turned into avoiding the term | Say the term in its own short sentence right after the intuition; show it on screen |
 | "Generic / AI-looking" | Default tells (§3); no benchmark | Name the benchmark; apply the banned list; one central formal idea |
 | Text blurry in motion | Scaled raster, `will-change` on scaled layers, blur on read text | Rasterize at 2–4×; remove `will-change`; take read text out of the blur |
 | Text overlapping during a swap | Old and new text share one window | Give each its own enter and exit windows; exit short and early |

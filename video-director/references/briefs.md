@@ -20,7 +20,9 @@ These templates are **fields, not examples**. Fill them from the user's topic. D
 # <working title>
 
 **Idea (one sentence):** <subject> <does/becomes> <turn>, so the viewer <understands/feels> <payoff>.
-**Promise (≤ 7 words, lands by 10 s):** <a tagline is not a factual claim; numbers, comparisons and "first/best/only" are, and go in FACTS.md>
+**Promise (≤ 7 words, on screen by 3 s):** <a tagline is not a factual claim; numbers, comparisons and "first/best/only" are, and go in FACTS.md>
+**Hook (0–3 s, sound off):** <hook copy> at <px> · CTA: <install command / URL / none> at <px> · the hero later proves this; it doesn't withhold it
+**Terms (said and shown):** <1–3 words this audience searches for: the subject's name, the standard term for each key property>
 **Audience · channel · how it's watched:** <who> · <where> · <muted autoplay? phone?>
 **Spec:** <W×H>, <fps>, <N s> = <frames> frames · deliverables: <mp4, poster, srt, no-music version, other aspects>
 
@@ -71,7 +73,7 @@ This file is the one source of truth. Picture, SFX, score, captions and QA all r
   "meta": { "w": 1920, "h": 1080, "fps": 60, "dur": 0.0,
             "clock": "music|voice|reads", "register": "clean|handmade|editorial|kinetic",
             "loop": false, "bpm": null, "meter": "4/4", "bars": null, "t0": null, "songOffset": null,
-            "grid": "fitted|designed|none",
+            "grid": "fitted|designed|none", "hookWaiver": null,
             "vo": { "status": "RENDERED|ESTIMATED", "file": null, "rateWps": null } },
   "objects": [ { "id": "string", "role": "constant|hero|bridge|prop", "what": "string" } ],
   "vo": [ { "id": "L1", "text": "string", "from": 0.0, "to": 0.0,
@@ -89,7 +91,9 @@ This file is the one source of truth. Picture, SFX, score, captions and QA all r
   "silences": [ { "from": 0.0, "to": 0.0 } ],
   "sfx":   [ { "at": "scene.beat", "offset": 0.0, "src": "string", "gain": 0.0, "why": "string" } ],
   "captions": [ { "from": 0.0, "to": 0.0, "text": "string", "src": "vo:L1 | beat" } ],
-  "texts": [ { "id": "string", "text": "string", "from": 0.0, "to": 0.0 } ],
+  "texts": [ { "id": "string", "text": "string", "from": 0.0, "to": 0.0,
+               "role": "hook|cta|term|null", "px": 0, "box": [0, 0, 0, 0] } ],
+  "terms": [ "string" ],
   "camera": [ { "t": 0.0, "zoom": 1.0, "x": 0.0, "y": 0.0, "why": "string" } ]
 }
 ```
@@ -103,13 +107,17 @@ Rules:
   - SFX are relative to a beat.
   - Captions derive from VO lines or beats.
   - Neither uses absolute times typed by hand.
+- **Texts:** `from`/`to` (or `in`/`out` naming beats) bound the time the text is fully legible, and `check_timeline.py` holds each one to the read-time formula.
+  - Mark the hook, the CTA and on-screen terms with `role`, and give their rendered font size in `px`.
+  - Once the layout exists, add `box`: [x, y, w, h] in delivery pixels at `from`, the text's own bounds rather than its container. `qa_video.py` measures size and contrast there.
+- **Terms** lists the words the film must say (if narrated) and show (SKILL.md principle 13).
 - **Reads:**
   - Scene `reads` belong to that scene.
   - The top-level `reads` holds reads that cross scene boundaries, which happens in journey and one-shape films with no cuts.
 - **Clocks:**
   - Music: beat times come from `t0 + n·(60/bpm)`. A `loop` must be a whole number of bars.
   - Voice: beat times come from the word timestamps in `vo`. While `meta.vo.status` is `ESTIMATED`, everything downstream is provisional.
-- `qa_video.py --beats` reads `cuts`, `silences`, `hero`, `meta.loop` and `meta.clock`.
+- `qa_video.py --beats` reads `cuts`, `silences`, `hero`, `texts` (with a role), `meta.loop` and `meta.clock`.
 
 ## 3. FACTS.md
 
@@ -255,7 +263,7 @@ Never claim a match you haven't viewed.
 **<title>**: <path to mp4> (<W×H>, <fps>, <dur> s) · also: <poster, srt, alt versions, source + one-command build>
 **What it is:** <one sentence> · **Concept:** <benchmark + chosen structure>
 **Scenes:** <t: one line each>
-**Checks:** loudness <I> LUFS / <TP> dBTP · cuts vs plan max <n> f · pops <n> (explained: …) · frozen holds <list> · read-time pass <n/n> · critic scores <…>
+**Checks:** hook <copy> legible at <t> s, <px> px, <n>:1 · terms said/shown <n/n> · loudness <I> LUFS / <TP> dBTP · cuts vs plan max <n> f · pops <n> (explained: …) · frozen holds <list> · read-time pass <n/n> · critic scores <…>
 **DECISIONs:** <list: overturn any in one reply>
 **Real vs illustrative:** <…> · **Permissions needed:** <logos, likenesses, music>
 **Weakest shot:** <id + why> · **Not verified:** <e.g. audio measured, not heard; 9:16 version not reviewed>

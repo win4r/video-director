@@ -77,6 +77,7 @@ Otherwise accept a rounding error of up to half a frame and note it.
 ## 3. Voice-led: script, VO, word timing
 
 - **Write for the ear.** Short clauses, one claim, ≤ 3.5 words/s. Faster through the clauses, slower at the ends.
+- **But name the thing.** Writing for the ear is not avoiding jargon. Plain words carry the intuition, then the line says the term the audience searches for ("That's a false positive."). Give the term its own short sentence, so it isn't buried and ASR can confirm it. Every entry in the timeline's `terms` is said verbatim at least once (SKILL.md principle 13).
 - **Render the VO before animating.** Frame length = measured VO + padding (0.2–0.5 s, longer before a hero beat). Never type durations by hand.
 - **Get word timings** from ASR (Whisper or faster-whisper) or from the TTS engine's timestamps. Cue tables reference **words** ("`launch`@12.84"), because words survive a re-cut and bare seconds don't.
 - **Cue the meaning, not the noun.**

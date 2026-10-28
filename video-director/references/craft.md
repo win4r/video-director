@@ -76,6 +76,7 @@ Text that animates in counts as visible only once complete. A typewriter effect 
 - **At least one breath:** a held pause or long take. In a 30–60 s film, aim for one before the turn.
 - **Emphasis budget:** the lead section gets about 35–40% of the runtime. If one section balloons past half, add time to the others rather than cutting it *(single case)*.
 - **Arc defaults:**
+  - Whatever the arc, the hook text is legible by 3 s (SKILL.md principle 1); the first section opens *with* it, not toward it.
   - **Promo:** brand open 8–12% → single-hero showcase 12–15% → feature climb 55–65%, alternating high and low energy with a breathing card every 1–2 features → finale at peak energy 13–16%.
   - **Narrated launch:** problem 8–10% → agitate 8–10% → thesis 5% → product 30–35% → proof 20–25% → contrast 10% → call to action 8–10%.
 - **Something new every shot.** A shot with no event reads as a bug, so a beat needs an event, not just motion.
@@ -154,6 +155,12 @@ Rules for using them:
   - the primary message ≥ 56 px, about 5% of frame height;
   - secondary text ≥ 32 px;
   - nothing meant to be read below 24 px.
+- **Hook and CTA floors** (the first 3 s and every CTA, for muted autoplay):
+  - the hook line ≥ 84 px; the CTA (install command, URL) and key terms ≥ 48 px;
+  - full opacity, ≥ 7:1 contrast against what is actually behind them;
+  - an install command is set in mono but is not a mono label: never muted, dimmed or tracked out.
+
+  `qa_video.py` measures these from the rendered frame, in the `box` the timeline gives each `texts[]` entry. It reads the cap height and divides by 0.72, which lands within ~2 px of the set size in common faces.
 - **Accent words:** one per line, through italic, weight or the accent colour.
 - **Mono labels** are decoration: uppercase, tracking 0.2em, muted.
 - **Swaps:** text inside a morphing container gets its own enter and exit windows. The old text exits short and early, and the new text never overprints it. Outgoing titles leave before incoming ones occupy the same space.
@@ -237,6 +244,9 @@ Budgets and rules:
 ## 11. Data, explainers, honesty in graphics
 
 - **An animation is a graphic, not data.** Only end values and dated anchors are facts. A counter stops on the caption's value while the caption is up.
+  - While a value is in transit it carries no label that claims it. The month, the "in 0.4 s", the unit-with-claim arrives when the counter lands, because any paused frame or screenshot is a claim.
+  - A count-up timer is allowed only if it runs in real time and says so.
+- **Periods and causes:** a period that isn't over is labelled ("Oct, to the 27th"). Timing isn't cause: "after the HN feature", not "HN brought 4,705".
 - **Context:** real axes, labels and units. A number without a unit is a defect.
 - **Labels:** illustrative or schematic visuals say so on screen (`SCHEMATIC`, `ILLUSTRATION`, `Example data`) for as long as they are visible. Exaggerate only with an on-screen note, and measure on the undistorted data.
   - An honesty label isn't chrome. Put it *on or beside the graphic it qualifies*, in the film's caption style, at ≥ 24 px.

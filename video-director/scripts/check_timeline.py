@@ -4,18 +4,33 @@
 Usage: python3 check_timeline.py timeline.json
 
 ERRORs (exit 1) are things that break sync or the film: gaps between scenes, beats outside
-the film, a loop that isn't whole bars, SFX pointing at beats that don't exist.
-WARNs are craft smells: a hero moment spent early, no silence before it, reads too short to
-land, captions faster than 3.5 words/s, a seam with no reason, VO timings still ESTIMATED.
+the film, a loop that isn't whole bars, SFX pointing at beats that don't exist, no hook text
+legible by 3 s (or a CTA that only appears later), a hook/CTA/term declared below its size
+floor, and a listed term that is never said or shown.
+WARNs are craft smells: a hero moment spent early, no silence before it, reads and texts held
+too briefly to land, captions faster than 3.5 words/s, a seam with no reason, VO timings
+still ESTIMATED, no terms listed, a term said but not shown (or shown but not said).
 Extra fields are allowed: the schema is a floor, not a cage.
 """
 import json
+import re
 import sys
 from pathlib import Path
+
+HOOK_BY = 3.0
+TEXT_FLOORS = {"hook": 84, "cta": 48, "term": 48}  # font px at a 1080 short side (craft.md §6)
 
 
 def is_num(v):
     return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def norm(s):
+    return " ".join(re.sub(r"[^\w]+", " ", str(s).lower()).split())
+
+
+def read_time(text):
+    return max(1.5, 1.0 + 0.3 * len(str(text).split()))  # craft.md §2
 
 
 def main():
@@ -50,7 +65,7 @@ def main():
     scenes = tl.get("scenes", [])
     if not scenes:
         err("no scenes")
-    beat_names = set()
+    beat_names, beat_t = set(), {}
     prev_end = 0.0
     for i, s in enumerate(scenes):
         sid, a, b = s.get("id", f"#{i}"), s.get("start"), s.get("end")
@@ -64,6 +79,8 @@ def main():
         items = beats.items() if isinstance(beats, dict) else enumerate(beats or [])
         for name, t in items:
             beat_names.add(f"{sid}.{name}")
+            if is_num(t):
+                beat_t[f"{sid}.{name}"] = float(t)
             if not is_num(t):
                 err(f"beat {sid}.{name} is not a number (keep refs like cueRef in a separate field)")
             elif not 0 <= t <= dur:
@@ -118,7 +135,54 @@ def main():
             if words / (t - f) > 3.5:
                 warn(f"caption '{text[:30]}' runs {words / (t - f):.1f} words/s (> 3.5)")
 
+    # texts: from/to in seconds, or in/out naming beats ("scene.beat")
+    texts = []
+    for x in tl.get("texts", []):
+        if not isinstance(x, dict):
+            continue
+        f = x.get("from") if is_num(x.get("from")) else beat_t.get(x.get("in"))
+        t = x.get("to") if is_num(x.get("to")) else beat_t.get(x.get("out"))
+        texts.append({**x, "from": f, "to": t})
+        label = str(x.get("text", x.get("id", "?")))[:30]
+        if f is not None and t is not None and t - f < read_time(x.get("text", "")) - frame:
+            warn(f"text '{label}' holds {t - f:.2f} s; it needs {read_time(x.get('text', '')):.2f} s to be read")
+        role, px = x.get("role"), x.get("px")
+        if role in TEXT_FLOORS:
+            if not is_num(px):
+                warn(f"{role} '{label}' has no px: declare its rendered font size so the floor can be checked")
+            elif px * 1080 / min(meta["w"], meta["h"]) < TEXT_FLOORS[role]:
+                err(f"{role} '{label}' is {px} px: below the {TEXT_FLOORS[role]} px floor (at a 1080 short side)")
+
+    # hook: sound off, the first 3 s say what this is (SKILL.md principle 1)
+    def first(role):
+        ts = [x["from"] for x in texts if x.get("role") == role and x["from"] is not None]
+        return min(ts) if ts else None
+    hook, cta, waiver = first("hook"), first("cta"), meta.get("hookWaiver")
+    if hook is None or hook > HOOK_BY:
+        msg = (f"hook text first legible at {hook:.2f} s" if hook is not None else "no texts[] entry with role 'hook'")
+        msg += f": by {HOOK_BY:g} s, sound off, large type must say what this is"
+        (warn if waiver else err)(msg + (f" (waived: {waiver})" if waiver else ""))
+    if cta is not None and cta > HOOK_BY:
+        (warn if waiver else err)(f"CTA first appears at {cta:.2f} s: show it by {HOOK_BY:g} s too "
+                                  "(it can return at the end)")
+
+    # terms: the words this audience searches for are said and shown (SKILL.md principle 13)
     vo = tl.get("vo")
+    said = norm(" ".join(str(l.get("text") or " ".join(str(w.get("w", "")) for w in l.get("words", [])))
+                         for l in vo or []))
+    shown = norm(" ".join(str(c.get("text", "")) for c in list(tl.get("captions", [])) + texts))
+    terms = tl.get("terms") or []
+    if not terms:
+        warn("no terms: list the 1-3 words this audience would search for (the subject's name, key properties)")
+    for term in terms:
+        hit = lambda text: re.search(r"\b" + re.escape(norm(term)), text) is not None
+        if not hit(said) and not hit(shown):
+            err(f"term '{term}' is never said or shown: name it right after the intuition it labels")
+        elif vo and not hit(said):
+            warn(f"term '{term}' is shown but never said")
+        elif not hit(shown):
+            warn(f"term '{term}' is said but never on screen: muted viewers miss it")
+
     vo_meta = meta.get("vo") if isinstance(meta.get("vo"), dict) else {}
     status = str(vo_meta.get("status", "")) + " " + " ".join(str(l.get("status", "")) for l in vo or [])
     if vo and "ESTIMATED" in status.upper():

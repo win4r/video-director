@@ -25,13 +25,13 @@ Each phase produces a cheap artifact that can be checked before the next, more e
 | Phase | You produce | Gate |
 |---|---|---|
 | 0. Intake | The filled minimal input (below), the interaction mode, the dials | One question round at most |
-| 1. Treatment | `TREATMENT.md`: the idea in one sentence, a benchmark, three structures with one chosen, a beat sheet with *reads*, a sound plan, `FACTS.md` if any claims are made | In ask-first mode the user approves it; otherwise log DECISIONs and go on |
+| 1. Treatment | `TREATMENT.md`: the idea in one sentence, the hook copy for 0–3 s and the terms to name, a benchmark, three structures with one chosen, a beat sheet with *reads*, a sound plan, `FACTS.md` if any claims are made | In ask-first mode the user approves it; otherwise log DECISIONs and go on |
 | 2. Timeline | `timeline.json`: every beat named in seconds, plus the clock, which is one of: a fitted beat grid, a designed grid, or VO word timings | `scripts/check_timeline.py` reports 0 errors |
 | 3. Look proof | 2–4 full-size stills of the most *different* beats, rendered with the real drawing code | They pass the principles below; VO timings are real, not ESTIMATED; optional user check |
 | 4. Build | Shots built one at a time, each with acceptance stills; strips across every transition | Stills look right; render is deterministic |
 | 5. Sound | Score, SFX and VO placed from the same timeline | Measured on the mix |
 | 6. Render & measure | A low-res draft, then the master; `scripts/qa_video.py` report | Checks pass, or each failure is explained |
-| 7. Independent review | A clean-context critic's ranked list, then **one** fix round and a re-check | No must-fix items left |
+| 7. Independent review | A clean-context critic's ranked list, then **one** fix round and a re-check | No must-fix items left. Never the step cut for time: if time is short, give the critic the sheets instead of the MP4 |
 | 8. Deliver | Files plus an honest report (template in `references/briefs.md`) | Nothing in it is claimed without being checked |
 
 **Order depends on the clock.**
@@ -142,15 +142,22 @@ The source repos disagree because they aim at different genres. Treat each disag
 - **In-world captions:** an inscription, a HUD plate or a label, one per beat.
 - **No text:** act the idea out; don't write a sign that repeats the story.
 - **Invariant:** anything meant to be read is readable and held long enough. Anything else is texture, deliberately blurred or dimmed. Nothing sits in between.
+- **The hook is text under every policy** (principle 1). In a *no text* film it is the one exception, unless `meta.hookWaiver` says why not.
 - **Subtitles are separate from the text policy.** Narrated films get them by default, because feeds autoplay muted. Style them in the film's caption language and keep them off the subject.
 
 ## Principles
 
 Each principle gives a rule, why it holds, and how to check it. They are the convergent findings of eight independent projects, credited in `references/sources.md`.
 
-**1. Hook in the first 2–3 s, and make frame 0 a finished composition.**
-Feeds autoplay muted and thumbnails use the first frame. A slow logo reveal loses the viewer before anything happens.
-*Check:* frame 0 isn't black, flat or half-built; the first read lands before 3 s.
+**1. Hook in the first 3 s, readable with the sound off.**
+Feeds autoplay muted and use the first frame as the thumbnail, so the opening has to say what this is before any sound or reveal arrives. A slow logo reveal, or a tagline saved for the payoff, loses the viewer before it lands.
+- By 3.0 s the core information is on screen as large, high-contrast text: the hook line (the tagline or promise), naming the subject in the audience's own words (principle 13), and, for anything with an action, the CTA (install command, URL). The CTA can return at the end; it can't appear *only* at the end.
+- Floors, in rendered font px at a 1080 short side: hook ≥ 84; CTA and key terms ≥ 48. All of it at full opacity and ≥ 7:1 contrast against what is actually behind it (`references/craft.md` §6).
+- Frame 0 is a finished composition, ideally already carrying the hook.
+- The hero moment (principle 2) *proves* the promise later; it never withholds it.
+- Break this only on purpose (a cinema trailer, a brief that asks for a cold open) and write the reason in `meta.hookWaiver`.
+
+*Check:* `check_timeline.py` finds the `hook` text (and any `cta`) legible by 3 s at its floor. `qa_video.py` measures their rendered size and contrast and makes `hook_sheet.jpg`. From those seven tiles alone, with no sound, say what the film is about and what to do; if you can't, neither can the feed.
 
 **2. One constant, one hero moment.**
 Give the eye something stable to hold: a hero, a stage, a page, or a shape that never changes while everything else does.
@@ -248,8 +255,9 @@ Code's signature flaw is moving every part at once, on the same curve, by the sa
 
 **11. Tell the truth on screen.**
 - Every number comes from `FACTS.md` (claim, source, quoted wording), and its words are no stronger than the source.
+- Timing isn't cause, and an unfinished period says so: "after the HN feature", not "HN brought 4,705"; "Oct (to date)", not "Oct".
 - Label illustrative visuals `SCHEMATIC`, `ILLUSTRATION` or `Example data`.
-- An animated counter is a graphic; only its end value is a fact, and it must stop on the caption's value.
+- An animated counter is a graphic; only its end value is a fact, and it must stop on the caption's value. A label that names a value (a month, "in 0.4 s") appears only once the counter has stopped on it, so no paused frame pairs a label with a wrong number.
 - Use the product's real UI, captured, not redrawn from memory.
 - Don't invent features, quotes or endorsements.
 - Don't claim "one prompt" if it took ten.
@@ -271,6 +279,15 @@ The first idea for a style is usually its cliché.
   - the default font; crowded vertical stacks.
 
 *Check:* the treatment names the benchmark and the two rejected structures. If you made a previous film for this user, at least 4 of these 6 differ: structure, opening, signature shot, camera path, score shape, ending.
+
+**13. Say the words people search for.**
+Plain words build the intuition, but the term is what the viewer will type into a search box or say to a colleague. An explanation that never names the thing leaves them unable to find it again.
+- List 1–3 `terms` in the treatment and the timeline: the subject's name, plus the field's standard term for each key property. For a bloom filter that's "false positive" and "no false negatives"; for a launch, the product's name and its category.
+- Say each term verbatim right after the intuition it names ("…all three bits were already set. That's a false positive."), and show it on screen at that moment, held for its read time.
+- Use the standard term, not a friendlier synonym. Name it once, plainly.
+- The subject's name belongs in the hook (principle 1). The other terms land when their idea does, not crammed into the first 3 s.
+
+*Check:* `check_timeline.py` finds every term in the VO and in the on-screen text or captions.
 
 ## Build contract (any engine)
 
@@ -299,6 +316,7 @@ When the request is a one-liner, expand it into this brief yourself, filling gap
 ```
 <inputs>     What to ask for, each with a default if skipped (copy, assets, track, palette)
 <direction>  Purpose + the one-sentence idea + benchmark (learn / don't take) + dials
+             Hook by 3 s, sound off: the copy and CTA, with sizes; the terms to say and show
              Look in numbers: hex roles, one accent and its meaning, type roles, motion law
              Banned: the specific defaults this film must avoid
 <structure>  Duration, aspect, fps, clock (BPM/bars or VO). Timestamped beats:
@@ -317,8 +335,10 @@ When the request is a one-liner, expand it into this brief yourself, filling gap
 
 ## Quality gates
 
+- **Plan:** `python3 scripts/check_timeline.py timeline.json` fails a hook or CTA that isn't legible by 3 s, a declared size under its floor, and a term that is never said or shown.
 - **Automated:** run `python3 scripts/qa_video.py film.mp4 --out qa/ [--beats timeline.json] [--loop]`. It produces:
-  - contact sheets 0.3 s inside each beat, and a 360 px phone sheet;
+  - contact sheets 0.3 s inside each beat, a 360 px phone sheet, and the hook sheet (0–3 s, the muted test);
+  - the rendered font size and contrast of every hook, CTA and term text the timeline gives a `box`;
   - a pop and single-frame-flash scan, frozen stretches, and a flat or black frame 0;
   - detected cuts compared with planned ones;
   - loudness and true peak, the loudest moment, the silences, and whether each planned silence really is one;
@@ -335,12 +355,13 @@ When the request is a one-liner, expand it into this brief yourself, filling gap
 ### Definition of done
 
 - [ ] The idea fits in one sentence, and a muted critic restated it from the frames
-- [ ] Frame 0 is a finished composition; the hook lands within 3 s
+- [ ] Frame 0 is a finished composition; by 3 s, sound off, the hook (and any CTA) is legible at its measured floor: 84 / 48 px, 7:1
 - [ ] All text passes the read-time and 360 px checks; nothing important is cropped or covered
 - [ ] No unexplained pops, flashes or blank transition frames; every frozen stretch is a designed hold
 - [ ] Cuts and hits land within 1 frame of the timeline (≤ 3 frames after re-fitting the grid on rendered audio)
 - [ ] The loudest moment is the payoff and real silence precedes it; −14 LUFS ±1 and true peak ≤ −1 dBTP on the delivered file
-- [ ] Every number traces to FACTS.md or is labelled; no invented UI
+- [ ] Every term is said (if narrated) and shown, verbatim
+- [ ] Every number traces to FACTS.md or is labelled; no label ever sits on an in-transit counter value; no invented UI
 - [ ] For loops, the seam matches in position and velocity
 - [ ] The report states the DECISIONs, the weakest shot, and what was measured rather than seen or heard
 

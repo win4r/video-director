@@ -9,9 +9,11 @@ Produces in --out:
   report.md / report.json   PASS / WARN / FAIL per check, with timestamps
   beats_sheet.jpg           one frame per beat, taken `offset` s after it (or evenly spaced)
   phone_sheet.jpg           1 fps at 360 px wide: can a phone viewer read it?
+  hook_sheet.jpg            0-3 s every 0.5 s at 360 px wide: the muted-autoplay test
 
-Checks: frame 0 (black/flat), single-frame flashes, pops (small spikes), detected cuts vs
-planned cuts, frozen stretches, flat frames, loop seam (position + speed), integrated
+Checks: hook, CTA and term texts (timeline texts[] with a role and a box: rendered font size
+and contrast against their floors), frame 0 (black/flat), single-frame flashes, pops (small
+spikes), detected cuts vs planned cuts, frozen stretches, flat frames, loop seam (position + speed), integrated
 loudness and true peak (ebur128), loudest 100 ms, silences and whether one precedes the peak,
 and whether the timeline's planned silences are actually quiet.
 
@@ -269,13 +271,59 @@ def sheet(path, times, width, cols, fps, dest, tmp):
     return str(dest)
 
 
+def measure_text(im, box, short):
+    """Cap height (px at a 1080 short side) and contrast of the text inside box = [x, y, w, h].
+
+    The box is the text's own bounds, not its container. Otsu splits the crop's luminance in
+    two and the smaller class is taken as the glyphs. Height runs from the top of the tallest
+    glyphs to the baseline (the last row still dense with ink), so descenders don't count:
+    caps and ascenders sit at about 0.72 of the font size in most faces, so font_px = cap / 0.72
+    (within ~2 px of the set size on Inter and JetBrains Mono).
+    """
+    x, y, w, h = (int(round(float(v))) for v in box)
+    rgb = np.asarray(im.crop((x, y, x + w, y + h)), np.float64) / 255
+    lin = np.where(rgb <= 0.04045, rgb / 12.92, ((rgb + 0.055) / 1.055) ** 2.4)
+    lum = lin @ np.array([0.2126, 0.7152, 0.0722])
+    hist, edges = np.histogram(lum, 256, (0, 1))
+    p = hist / max(1, hist.sum())
+    w0 = np.cumsum(p)
+    mu = np.cumsum(p * edges[:-1])
+    between = (mu[-1] * w0 - mu) ** 2 / (w0 * (1 - w0) + 1e-12)
+    hi = lum > edges[int(np.argmax(between))]
+    ink = hi if hi.mean() <= 0.5 else ~hi
+    if ink.all() or not ink.any():
+        return {"font_px": 0.0, "contrast": 1.0}
+    l_ink, l_bg = float(np.median(lum[ink])), float(np.median(lum[~ink]))
+    contrast = (max(l_ink, l_bg) + 0.05) / (min(l_ink, l_bg) + 0.05)
+    rows = ink.sum(axis=1)
+    dense = np.nonzero(rows >= 0.25 * rows.max())[0]
+    top = np.nonzero(rows >= max(1, 0.03 * rows.max()))[0][0]
+    cap = float(dense[-1] - top + 1) * 1080 / short
+    return {"font_px": round(cap / 0.72, 1), "contrast": round(contrast, 1)}
+
+
+TEXT_FLOORS = {"hook": 84, "cta": 48, "term": 48}  # font px at a 1080 short side (craft.md §6)
+MIN_CONTRAST = 7.0
+
+
+def beat_times(tl):
+    """'scene.beat' -> seconds, for fields that point at beats by name."""
+    out = {}
+    for s in tl.get("scenes", []):
+        b = s.get("beats")
+        for k, v in (b.items() if isinstance(b, dict) else []):
+            if isinstance(v, (int, float)):
+                out[f"{s.get('id')}.{k}"] = float(v)
+    return out
+
+
 def load_timeline(path):
     tl = json.loads(Path(path).read_text())
     nums = lambda xs: [float(v) for v in xs if isinstance(v, (int, float))]
     beats, cuts, hero = [], [], None
     if isinstance(tl, list):
         return {"beats": sorted(set(nums(tl))), "cuts": [], "hero": None,
-                "silences": [], "loop": False, "clock": None}
+                "silences": [], "loop": False, "clock": None, "texts": []}
     for s in tl.get("scenes", []):
         if isinstance(s.get("start"), (int, float)):
             beats.append(float(s["start"]))
@@ -287,8 +335,15 @@ def load_timeline(path):
         hero = tl["hero"].get("t")
     meta = tl.get("meta", {}) if isinstance(tl.get("meta"), dict) else {}
     sil = [x for x in tl.get("silences", []) if isinstance(x, dict) and "from" in x and "to" in x]
+    named = beat_times(tl)
+    texts = []
+    for x in tl.get("texts", []):
+        if isinstance(x, dict) and x.get("role") in TEXT_FLOORS:
+            t = x.get("from") if isinstance(x.get("from"), (int, float)) else named.get(x.get("in"))
+            texts.append({"text": str(x.get("text", x.get("id", "?"))), "role": x["role"],
+                          "from": t, "box": x.get("box")})
     return {"beats": sorted(set(beats)), "cuts": cuts, "hero": hero, "silences": sil,
-            "loop": bool(meta.get("loop")), "clock": meta.get("clock")}
+            "loop": bool(meta.get("loop")), "clock": meta.get("clock"), "texts": texts}
 
 
 # ---------------------------------------------------------------- report
@@ -321,11 +376,12 @@ def main():
     beats: list = []
     planned_cuts: list = []
     planned_sil: list = []
+    texts: list = []
     hero = clock = None
     if args.beats:
         tl = load_timeline(args.beats)
         beats, planned_cuts, hero = tl["beats"], tl["cuts"], tl["hero"]
-        planned_sil, clock = tl["silences"], tl["clock"]
+        planned_sil, clock, texts = tl["silences"], tl["clock"], tl["texts"]
         args.loop = args.loop or tl["loop"]
     if args.times:
         beats = sorted(float(x) for x in args.times.split(",") if x.strip())
@@ -344,6 +400,13 @@ def main():
         beat_sheet = sheet(video, sample, 480, 4, fps, out / "beats_sheet.jpg", tmp)
         phone_t = [float(t) + 0.5 for t in range(int(dur))][:60] or [0.0]
         phone_sheet = sheet(video, phone_t, 360, 6, fps, out / "phone_sheet.jpg", tmp)
+        hook_t = [i * 0.5 for i in range(7) if i * 0.5 < dur]
+        hook_sheet = sheet(video, hook_t, 360, 7, fps, out / "hook_sheet.jpg", tmp)
+        for i, x in enumerate(texts):
+            if isinstance(x["from"], (int, float)) and isinstance(x["box"], list) and len(x["box"]) == 4:
+                t = min(float(x["from"]) + 0.1, dur - 1 / fps)
+                im = grab(video, t, info["w"], tmp, f"text_{i:02d}")
+                x.update(measure_text(im, x["box"], min(info["w"], info["h"])) if im else {}, at=round(t, 2))
 
     checks = []
 
@@ -355,6 +418,22 @@ def main():
         add("FAIL", "frame 0", f"flat or black (mean {f0['mean']}, contrast {f0['contrast']}): thumbnails and muted autoplay show this")
     else:
         add("PASS", "frame 0", f"mean {f0['mean']}, contrast {f0['contrast']}; still confirm it's a finished composition")
+    if args.beats and not any(x["role"] == "hook" for x in texts):
+        add("WARN", "hook text", "the timeline marks no texts[] role 'hook': judge hook_sheet.jpg by eye "
+            "(sound off, first 3 s: can you say what it is and what to do?)")
+    for x in texts:
+        name, floor = f"{x['role']} text", TEXT_FLOORS[x["role"]]
+        if "font_px" not in x:
+            why = ("no time (from, or in naming a beat)" if not isinstance(x["from"], (int, float)) else
+                   "no box [x, y, w, h]" if not (isinstance(x["box"], list) and len(x["box"]) == 4) else
+                   "the frame could not be grabbed")
+            add("WARN", name, f"'{x['text'][:40]}': {why}, so size and contrast are unmeasured; "
+                "check hook_sheet.jpg")
+            continue
+        ok = x["font_px"] >= floor and x["contrast"] >= MIN_CONTRAST
+        add("PASS" if ok else "FAIL", name,
+            f"'{x['text'][:40]}' at {x['at']} s: ~{x['font_px']} px font (>= {floor}), "
+            f"contrast {x['contrast']}:1 (>= {MIN_CONTRAST:g}:1)")
     add("FAIL" if pic["flashes"] else "PASS", "single-frame flashes",
         f"at {pic['flashes']}" if pic["flashes"] else "none")
     add("WARN" if pic["pops"] else "PASS", "pops",
@@ -405,14 +484,15 @@ def main():
                     f"(needs < {aud['silence_threshold_db']} dBFS)")
 
     report = {"file": str(video), "info": info, "picture": pic, "cuts_vs_plan": cutcmp,
-              "audio": aud, "sheets": {"beats": beat_sheet, "phone": phone_sheet}, "checks": checks}
+              "audio": aud, "texts": texts,
+              "sheets": {"beats": beat_sheet, "phone": phone_sheet, "hook": hook_sheet}, "checks": checks}
     (out / "report.json").write_text(json.dumps(report, indent=2, default=float))
     lines = [f"# QA: {video.name}", "",
              f"{info['w']}x{info['h']} @ {fps:.3f} fps, {dur:.2f} s, audio: {info['audio']}", "",
              "| level | check | detail |", "|---|---|---|"]
     lines += [f"| {c['level']} | {c['check']} | {c['detail']} |" for c in checks]
-    lines += ["", f"Sheets: {beat_sheet}, {phone_sheet}",
-              "Look at both sheets: numbers catch broken, not bad."]
+    lines += ["", f"Sheets: {beat_sheet}, {phone_sheet}, {hook_sheet}",
+              "Look at all three: numbers catch broken, not bad. The hook sheet is the muted test."]
     (out / "report.md").write_text("\n".join(lines) + "\n")
     print("\n".join(lines))
     sys.exit(1 if any(c["level"] == "FAIL" for c in checks) else 0)
