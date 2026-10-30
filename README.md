@@ -8,6 +8,12 @@
 
 The skill treats **Claude Opus 5.5** as the director and coding agent: plan the film in numbers, build it deterministically, then measure what it can't watch or hear. It holds principles with their reasons, a workflow with a gate at each phase, and two QA scripts. It deliberately ships no shot library to copy.
 
+## Animation demo
+
+[![Animation demo: a hand-drawn floating city comes to life in color](assets/demo.gif)](assets/demo.mp4)
+
+[Watch the original MP4 (30 seconds, 720 × 720, 60 fps)](assets/demo.mp4)
+
 ## What's inside
 
 | Path | What it is |
