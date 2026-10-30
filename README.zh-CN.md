@@ -10,9 +10,17 @@
 
 ## 动画演示
 
+### 手绘城市
+
 [![动画演示：手绘空中城市逐渐成形并染上色彩](assets/demo.gif)](assets/demo.mp4)
 
 [查看原始 MP4（30 秒，720 × 720，60 帧/秒）](assets/demo.mp4)
+
+### 3D 角色动画
+
+[![3D 角色动画：橙色小角色在笔记本电脑前工作](assets/character-demo.gif)](assets/character-demo.mp4)
+
+[查看有声原始 MP4（16 秒，1920 × 1080，24 帧/秒）](assets/character-demo.mp4)
 
 ## 项目包含什么？
 

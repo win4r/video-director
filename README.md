@@ -10,9 +10,17 @@ The skill treats **Claude Opus 5.5** as the director and coding agent: plan the 
 
 ## Animation demo
 
+### Hand-drawn city
+
 [![Animation demo: a hand-drawn floating city comes to life in color](assets/demo.gif)](assets/demo.mp4)
 
 [Watch the original MP4 (30 seconds, 720 × 720, 60 fps)](assets/demo.mp4)
+
+### 3D character animation
+
+[![3D character animation: a small orange character working at a laptop](assets/character-demo.gif)](assets/character-demo.mp4)
+
+[Watch the original MP4 with audio (16 seconds, 1920 × 1080, 24 fps)](assets/character-demo.mp4)
 
 ## What's inside
 
