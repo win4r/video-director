@@ -9,13 +9,14 @@ legible by 3 s (or a CTA that only appears later), a hook/CTA/term declared belo
 floor, and a listed term that is never said or shown.
 WARNs are craft smells: a hero moment spent early, no silence before it, reads and texts held
 too briefly to land, captions faster than 3.5 words/s (7 characters/s in Chinese, Japanese
-and Korean), a seam with no reason, overlapping scenes, VO timings still ESTIMATED, no terms
+and Korean; mixed text adds up both), a seam with no reason, overlapping scenes, VO timings still ESTIMATED, no terms
 listed, a term said but not shown (or shown but not said).
-A term matches as whole words, allowing a plural, or anywhere in unspaced CJK text.
+A term matches as whole words, allowing a plural; in unspaced CJK text, as a substring.
 Extra fields are allowed: the schema is a floor, not a cage. A field of the wrong shape is an
 ERROR, not a crash.
 """
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -26,14 +27,7 @@ CAPTION_WPS, CAPTION_CJK_CPS = 3.5, 7.0  # craft.md §2
 
 
 def is_num(v):
-    return isinstance(v, (int, float)) and not isinstance(v, bool)
-
-
-def is_cjk(text):
-    """True if most of the letters are Chinese, Japanese or Korean."""
-    letters = [c for c in str(text) if c.isalnum()]
-    cjk = sum(1 for c in letters if cjk_char(c))
-    return bool(letters) and cjk * 2 > len(letters)
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
 
 
 def cjk_char(c):
@@ -41,32 +35,50 @@ def cjk_char(c):
             or "\uf900" <= c <= "\ufaff" or "\uff66" <= c <= "\uff9f")
 
 
+def count(text):
+    """(CJK characters, Latin-style words): mixed text is read as the sum of both."""
+    text = str(text)
+    cjk = sum(cjk_char(c) for c in text)
+    words = "".join(" " if cjk_char(c) else c for c in text).split()
+    # beside CJK, a token that is only punctuation isn't a word; in Latin text the old count stands
+    return cjk, sum(any(c.isalnum() for c in w) for w in words) if cjk else len(words)
+
+
 def norm(s):
-    return " ".join(re.sub(r"[^\w+#]+", " ", str(s).lower()).split())  # + and # keep C++ apart from C
+    return " ".join(re.sub(r"[^\w+#%]+", " ", str(s).lower()).split())  # keeps C++, C# and 50% whole
+
+
+def joins(c):
+    """Would this neighbour make a match part of a longer word? CJK runs on without spaces."""
+    return (c.isalnum() or c in "_+#%") and not cjk_char(c)
 
 
 def term_in(term, text):
-    """Whole words, allowing a plural. CJK has no spaces, so there a term is a substring."""
+    """Whole words, allowing a plural. Unspaced CJK text is matched as a substring."""
     term, text = norm(term), norm(text)
-    if not re.search(r"\w", term):
+    if not term:
         return False
-    if any(cjk_char(c) for c in term):
+    if any(cjk_char(c) for c in term) or not any(c.isalnum() for c in term):
         return term.replace(" ", "") in text.replace(" ", "")
-    return re.search(r"(?<![\w+#])" + re.escape(term) + r"(?:s|es)?(?![\w+#])", text) is not None
+    stem = re.escape(term[:-1]) + "(?:y|ies|ys)" if term.endswith("y") else re.escape(term) + "(?:s|es)?"
+    for m in re.finditer(stem, text):
+        before, after = text[m.start() - 1:m.start()], text[m.end():m.end() + 1]
+        if not (before and joins(before)) and not (after and joins(after)):
+            return True
+    return False
 
 
 def read_time(text):  # craft.md §2
-    text = str(text)
-    if is_cjk(text):
-        return max(1.5, sum(c.isalnum() for c in text) / 4.5 + 1.5)
-    return max(1.5, 1.0 + 0.3 * len(text.split()))
+    cjk, words = count(text)
+    return max(1.5, cjk / 4.5 + 1.5 + 0.3 * words) if cjk else max(1.5, 1.0 + 0.3 * words)
 
 
 def caption_rate(text, secs):
-    """(rate, limit, unit) for a caption on screen for secs."""
-    if is_cjk(text):
-        return sum(c.isalnum() for c in text) / secs, CAPTION_CJK_CPS, "characters/s"
-    return len(text.split()) / secs, CAPTION_WPS, "words/s"
+    """(rate, limit, unit) for a caption on screen for secs. A word counts as two CJK characters."""
+    cjk, words = count(text)
+    if cjk:
+        return (cjk + words * CAPTION_CJK_CPS / CAPTION_WPS) / secs, CAPTION_CJK_CPS, "characters/s"
+    return words / secs, CAPTION_WPS, "words/s"
 
 
 def read_json(path):
@@ -74,7 +86,7 @@ def read_json(path):
         return json.loads(Path(path).read_text())
     except OSError as e:
         report([f"can't read {path}: {e.strerror}"], [])
-    except ValueError as e:
+    except ValueError as e:  # bad JSON, or not UTF-8
         report([f"{path} is not valid JSON: {e}"], [])
 
 
@@ -146,6 +158,9 @@ def main():
             warn(f"scene {sid}: overlaps the scene before it by {prev_end - a:.3f} s")
         prev_end = max(prev_end, b)
         beats = s.get("beats", {})
+        if not isinstance(beats or [], (dict, list)):
+            err(f"scene {sid}: beats must be an object or a list")
+            beats = []
         items = beats.items() if isinstance(beats, dict) else enumerate(beats or [])
         for name, t in items:
             beat_names.add(f"{sid}.{name}")
@@ -220,10 +235,10 @@ def main():
     texts = []
     for x in dicts(tl.get("texts"), "texts"):
         for key in ("in", "out"):
-            if x.get(key) is not None and x[key] not in beat_t:
+            if x.get(key) is not None and str(x[key]) not in beat_t:
                 err(f"text '{str(x.get('text', x.get('id', '?')))[:30]}': {key} '{x[key]}' is not a beat")
-        f = x.get("from") if is_num(x.get("from")) else beat_t.get(x.get("in"))
-        t = x.get("to") if is_num(x.get("to")) else beat_t.get(x.get("out"))
+        f = x.get("from") if is_num(x.get("from")) else beat_t.get(str(x.get("in")))
+        t = x.get("to") if is_num(x.get("to")) else beat_t.get(str(x.get("out")))
         texts.append({**x, "from": f, "to": t})
         label = str(x.get("text", x.get("id", "?")))[:30]
         if f is not None and f >= dur:
@@ -231,7 +246,7 @@ def main():
         if f is not None and t is not None and t - f < read_time(x.get("text", "")) - frame:
             warn(f"text '{label}' holds {t - f:.2f} s; it needs {read_time(x.get('text', '')):.2f} s to be read")
         role, px = x.get("role"), x.get("px")
-        if role in TEXT_FLOORS:
+        if isinstance(role, str) and role in TEXT_FLOORS:
             if not is_num(px):
                 warn(f"{role} '{label}' has no px: declare its rendered font size so the floor can be checked")
             elif px * 1080 / min(meta["w"], meta["h"]) < TEXT_FLOORS[role]:

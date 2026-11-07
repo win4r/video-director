@@ -52,6 +52,11 @@ def test_clean_film_passes(tmp_path):
     ("ブルームフィルタ", "ブルームフィルタとは何か"),
     ("布隆 过滤器", "这就是布隆过滤器的原理"),
     ("AI 代码", "这是 AI 代码工具"),
+    ("API", "调用API接口的方法"),
+    ("Python", "用Python写爬虫"),
+    ("query", "two queries"),
+    ("50%", "up 50% this year"),
+    ("%", "up 50% this year"),
 ])
 def test_term_found(tmp_path, term, shown):
     code, out = check(tmp_path, film(texts=text(shown), terms=[term]))
@@ -66,6 +71,8 @@ def test_term_found(tmp_path, term, shown):
     ("art", "start here"),
     ("布隆过滤器", "这就是过滤器的原理"),
     ("!!!", "anything at all"),
+    ("50%", "50 users"),
+    ("API", "调用APIs2接口"),
 ])
 def test_term_not_found(tmp_path, term, shown):
     code, out = check(tmp_path, film(texts=text(shown), terms=[term]))
@@ -85,6 +92,8 @@ def test_cjk_said_but_not_shown_warns(tmp_path):
     ("布隆过滤器的工作原理", 3.0, True),
     ("短", 1.8, False),
     ("two words", 1.6, False),
+    ("Claude Code 是一个命令行工具", 3.9, False),  # 8 / 4.5 + 0.6 + 1.5 = 3.88 s
+    ("Claude Code 是一个命令行工具", 1.9, True),
     ("two words", 1.2, True),
 ])
 def test_read_time(tmp_path, s, hold, warns):
@@ -97,11 +106,19 @@ def test_read_time(tmp_path, s, hold, warns):
     ("这是一段非常非常非常长的中文字幕内容需要很久才能读完", 1.0, True),
     ("这是一段字幕", 2.0, False),
     ("a caption of a few words", 2.0, False),
+    ("TypeScript 类型系统完全入门", 1.0, True),
     ("a caption of a fair few more words than that", 1.0, True),
 ])
 def test_caption_rate(tmp_path, s, secs, warns):
     code, out = check(tmp_path, film(captions=[{"from": 1, "to": 1 + secs, "text": s}]))
     assert ("/s (>" in out) is warns, out
+
+
+def test_non_utf8_timeline(tmp_path):
+    path = tmp_path / "t.json"
+    path.write_bytes(b'{"meta": "\xff\xfe"}')
+    r = subprocess.run([sys.executable, str(SCRIPTS / "check_timeline.py"), str(path)], capture_output=True, text=True)
+    assert r.returncode == 1 and "Traceback" not in r.stderr
 
 
 def test_cjk_rules_match_craft_md():
@@ -110,6 +127,8 @@ def test_cjk_rules_match_craft_md():
     assert ct.read_time("字") == pytest.approx(1.5 + 1 / 4.5)
     assert ct.read_time("one two three four five six seven") == pytest.approx(1.0 + 0.3 * 7)
     assert ct.read_time("a") == 1.5
+    assert ct.read_time("$ brew install kempt") == pytest.approx(1.0 + 0.3 * 4)
+    assert ct.read_time("你好，世界 ， 再见") == pytest.approx(6 / 4.5 + 1.5)
 
 
 # ---- malformed input is reported, never a traceback
@@ -133,6 +152,10 @@ def test_cjk_rules_match_craft_md():
     (film(reads=[1]), "reads"),
     (film(terms="bloom"), "terms must be a list"),
     (film(cuts=3), "cuts must be a list"),
+    (film(scenes=[{"id": "a", "start": 0, "end": 10, "beats": 5}]), "beats must be"),
+    (film(texts=[{"text": "x", "in": ["a.x"], "role": "hook", "px": 100}]), "is not a beat"),
+    (film(texts=[{"text": "x", "from": 1, "role": ["hook"]}]), "hook"),
+    ('{"meta": {"w": 1920, "h": 1080, "fps": 30, "dur": Infinity, "clock": "music", "bpm": 120, "loop": true}}', "meta.dur"),
 ])
 def test_malformed_is_an_error_line(tmp_path, bad, expected):
     code, out = check(tmp_path, bad)
@@ -248,11 +271,8 @@ def test_music_loop_must_be_whole_bars(tmp_path):
     assert code == 1 and "whole bars" in out
 
 
-def test_floors_match_between_scripts(qa):
+def test_shared_definitions_match_between_scripts(qa):
     ct = load("check_timeline")
     assert ct.TEXT_FLOORS == qa.TEXT_FLOORS
-
-
-@pytest.mark.parametrize("s", ["布隆过滤器", "Bloom filter", "", "使用 AI 代码工具", "カタカナ"])
-def test_is_cjk_matches_between_scripts(qa, s):
-    assert load("check_timeline").is_cjk(s) is qa.is_cjk(s)
+    for c in "布カ데ｶa1 ":
+        assert ct.cjk_char(c) == qa.cjk_char(c)

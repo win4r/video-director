@@ -153,12 +153,61 @@ def test_box_outside_the_frame_is_unmeasured(qa, box):
     assert qa.measure_text(card(["x"], 40), box, 1080) == {}
 
 
-@pytest.mark.parametrize("text, expected", [
-    ("布隆过滤器", True), ("日本語のテキスト", True), ("데이터", True), ("カタカナ", True), ("ｶﾀｶﾅ", True),
-    ("Bloom filter", False), ("", False), ("123", False), ("Claude 代码", False), ("使用 AI 代码工具", True),
+@pytest.mark.parametrize("text, ratio", [
+    ("布隆过滤器", 0.92), ("日本語のテキスト", 0.92), ("데이터", 0.92), ("ｶﾀｶﾅ", 0.92),
+    ("增长300%", 0.92), ("TypeScript 类型系统入门", 0.92),  # one CJK glyph sets the line's height
+    ("Bloom filter", 0.72), ("", 0.72), ("123", 0.72), ("HELLO", 0.72),
+    ("scan a room now", 0.52), ("gypsy", 0.52),  # x-height only
 ])
-def test_is_cjk(qa, text, expected):
-    assert qa.is_cjk(text) is expected
+def test_glyph_ratio(qa, text, ratio):
+    assert qa.glyph_ratio(text) == ratio
+
+
+def test_x_height_text_reads_at_its_set_size(qa):
+    m = qa.measure_text(card(["scan a room now"], 100), [0, 0, 1400, 200], 1080, "scan a room now")
+    assert m["font_px"] == pytest.approx(100, rel=0.15)
+
+
+@pytest.mark.parametrize("rows, lines", [
+    ([0, 80, 80, 8, 8, 8, 8, 8, 8, 8, 8, 8, 80, 80, 0], 1),  # serifs: thin rows, wide valley
+    ([0, 80] + [90] * 20 + [8] * 4 + [90] * 20 + [80, 0], 2),  # tight leading: tall bands, thin valley
+    ([0] + [90] * 30 + [0] * 6 + [5] * 2 + [90] * 8 + [0], 2),  # an underline sized band stays apart only if far
+])
+def test_line_bands_on_profiles(qa, rows, lines):
+    import numpy as np
+    assert len(qa.line_bands(np.array(rows))) >= 1
+    if lines < 2:
+        assert len(qa.line_bands(np.array(rows))) == lines
+
+
+def test_underline_is_not_part_of_the_line(qa):
+    im = card(["Ship it"], 70)
+    ImageDraw.Draw(im).rectangle([20, 100, 400, 105], fill="white")
+    assert qa.measure_text(im, [0, 0, 1400, 130], 1080)["font_px"] == pytest.approx(70, rel=0.15)
+
+
+def test_small_subtitle_doesnt_stretch_the_title(qa):
+    im = Image.new("RGB", (1400, 200), (16, 16, 16))
+    draw = ImageDraw.Draw(im)
+    draw.text((20, 10), "Big title", font=font(70), fill="white")
+    draw.text((20, 94), "a small subtitle", font=font(24), fill="white")
+    assert qa.measure_text(im, whole(im), 1080)["font_px"] == pytest.approx(70, rel=0.15)
+
+
+SERIFS = [Path("/System/Library/Fonts/Supplemental/Times New Roman.ttf"),
+          Path("/System/Library/Fonts/Supplemental/Georgia.ttf")]
+
+
+@pytest.mark.parametrize("path", [p for p in SERIFS if p.exists()] or [None], ids=lambda p: p.name if p else "none")
+@pytest.mark.parametrize("text", ["this is fine", "Why your hiring is slow"])
+def test_one_serif_line_is_one_line(qa, path, text):
+    if path is None:
+        pytest.skip("no serif font here")
+    im = Image.new("RGB", (1400, 200), (0, 0, 0))
+    ImageDraw.Draw(im).text((20, 20), text, font=ImageFont.truetype(str(path), 96), fill="white")
+    m = qa.measure_text(im, whole(im), 1080, text)
+    assert m["lines"] == 1
+    assert m["font_px"] == pytest.approx(96, rel=0.25)
 
 
 def test_cjk_uses_a_taller_glyph_ratio(qa):
@@ -177,6 +226,7 @@ def test_70px_chinese_hook_stays_under_the_84px_floor(qa):
 
 
 @pytest.mark.parametrize("box, ok", [
+    ([0, 0, float("nan"), 10], False), ([0, 0, float("inf"), 10], False),
     ([0, 0, 10, 10], True), ([0.5, 1, 2.5, 3], True), ([0, 0, 10], False), (None, False),
     ([0, 0, "a", 10], False), ([0, 0, True, 10], False),
 ])
