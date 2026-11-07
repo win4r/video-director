@@ -268,3 +268,26 @@ def test_three_small_lines_fail_the_hook_floor_on_a_real_render(tmp_path):
     code, levels, report = run_qa(film, tmp_path / "qa", "--beats", timeline)
     assert levels["hook text"] == ["FAIL"], report["texts"]
     assert code == 1
+
+
+# Ink per row of a real hook line ("definitely not, or probably yes.", 88 px) in a box that starts
+# on the first row of ink: sparse ascenders, then a dense x-height body, then descenders.
+TIGHT_LINE = [81, 83, 85, 86, 105, 107, 108, 108, 108, 81, 80, 80, 79, 79, 79, 79, 79,
+              216, 487, 544, 594, 627, 646, 662, 675, 655, 655, 554, 499, 466, 445, 428, 426,
+              415, 413, 424, 496, 500, 506, 502, 505, 507, 502, 503, 406, 388, 390, 390, 396,
+              400, 413, 432, 466, 535, 625, 617, 602, 585, 563, 535, 502, 455, 388,
+              108, 48, 47, 46, 44, 43, 40, 41, 46, 60, 58, 57, 55, 52, 49, 46, 43, 36]
+
+
+def test_box_starting_on_the_first_row_of_ink_keeps_the_ascenders(qa):
+    assert qa.line_bands(np.array(TIGHT_LINE)) == [(0, 62)]
+
+
+def test_blank_rows_above_a_line_give_the_same_height(qa):
+    (top, base), = qa.line_bands(np.array([0] * 5 + TIGHT_LINE))
+    assert base - top == 62
+
+
+def test_a_second_line_is_still_cut_at_the_gap_between_lines(qa):
+    bands = qa.line_bands(np.array(TIGHT_LINE + [0] * 6 + TIGHT_LINE))
+    assert [b - t for t, b in bands] == [62, 62]
