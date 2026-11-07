@@ -271,17 +271,70 @@ def sheet(path, times, width, cols, fps, dest, tmp):
     return str(dest)
 
 
-def measure_text(im, box, short):
+def is_cjk(text):
+    """True if most of the letters are Chinese, Japanese or Korean."""
+    letters = [c for c in str(text) if c.isalnum()]
+    cjk = sum(1 for c in letters if "\u3040" <= c <= "\u30ff" or "\u3400" <= c <= "\u9fff"
+              or "\uac00" <= c <= "\ud7a3" or "\uf900" <= c <= "\ufaff" or "\uff66" <= c <= "\uff9f")
+    return bool(letters) and cjk * 2 > len(letters)
+
+
+def line_bands(rows):
+    """[(top, baseline)] for each line of text, from ink per pixel row.
+
+    Blank rows split lines; inside a block with none, so does a valley under 12% of its densest
+    row, which is what tight leading leaves where descenders meet the next line's ascenders. A
+    short band just above a taller one (the dot of an i, the bar of a T over lowercase) joins it.
+    The baseline is the last row at half the band's 70th-percentile ink: descenders are sparser than
+    that, while the stems at the foot of a line of capitals are not.
+    """
+    bands = []
+    for a, b in runs(rows >= max(1, 0.03 * rows.max())):
+        bands += [(a + c, a + d) for c, d in runs(rows[a:b] >= 0.12 * rows[a:b].max())]
+    joined = []
+    for a, b in reversed(bands):
+        if joined:
+            below_a, below_b = joined[-1]
+            tall = below_b - below_a
+            if b - a < 0.35 * tall and below_a - b < 0.35 * tall:
+                joined[-1] = (a, below_b)
+                continue
+        joined.append((a, b))
+    kept = []
+    for a, b in reversed(joined):  # top to bottom now: loose descenders join the line above
+        if kept and b - a < 0.35 * (kept[-1][1] - kept[-1][0]) and a - kept[-1][1] < 0.35 * (kept[-1][1] - kept[-1][0]):
+            kept[-1] = (kept[-1][0], b)
+        else:
+            kept.append((a, b))
+    out, prev_end = [], 0
+    for a, b in kept:
+        start = prev_end + int(np.argmin(rows[prev_end:a])) if a > prev_end else a
+        inked = np.nonzero(rows[start:b] >= max(1, 0.03 * rows[a:b].max()))[0]
+        solid = np.nonzero(rows[a:b] >= 0.5 * np.percentile(rows[a:b], 70))[0]
+        out.append((start + int(inked[0]), a + int(solid[-1])))
+        prev_end = b
+    return out
+
+
+def measure_text(im, box, short, text=""):
     """Cap height (px at a 1080 short side) and contrast of the text inside box = [x, y, w, h].
 
-    The box is the text's own bounds, not its container. Otsu splits the crop's luminance in
-    two and the smaller class is taken as the glyphs. Height runs from the top of the tallest
-    glyphs to the baseline (the last row still dense with ink), so descenders don't count:
-    caps and ascenders sit at about 0.72 of the font size in most faces, so font_px = cap / 0.72
-    (within ~2 px of the set size on Inter and JetBrains Mono).
+    The box is the text's own bounds, not its container. It is clipped to the frame first:
+    padding it would measure the padding, and clipped=True says the numbers are for what is left.
+    Otsu splits the crop's luminance in two and the smaller class is taken as the glyphs. Height
+    runs from the top of the tallest glyphs to the baseline (the last row still dense with ink),
+    so descenders don't count, and it is taken line by line, so a three-line block isn't read as
+    one huge line. Lines of a similar size are also capped at their baseline spacing, because
+    at tight leading the descenders above can't be told from the ascenders below. With several
+    lines the largest counts: give a smaller line its own texts[] entry. Latin caps and ascenders sit at about 0.72 of the font size in most faces (within
+    ~2 px of the set size on Inter and JetBrains Mono); CJK glyphs fill about 0.92 of the em.
     """
     x, y, w, h = (int(round(float(v))) for v in box)
-    rgb = np.asarray(im.crop((x, y, x + w, y + h)), np.float64) / 255
+    x0, y0, x1, y1 = max(x, 0), max(y, 0), min(x + w, im.width), min(y + h, im.height)
+    if x1 <= x0 or y1 <= y0:
+        return {}
+    clipped = max(x0 - x, y0 - y, x + w - x1, y + h - y1) > 2  # allow for rounding
+    rgb = np.asarray(im.crop((x0, y0, x1, y1)), np.float64) / 255
     lin = np.where(rgb <= 0.04045, rgb / 12.92, ((rgb + 0.055) / 1.055) ** 2.4)
     lum = lin @ np.array([0.2126, 0.7152, 0.0722])
     hist, edges = np.histogram(lum, 256, (0, 1))
@@ -289,21 +342,30 @@ def measure_text(im, box, short):
     w0 = np.cumsum(p)
     mu = np.cumsum(p * edges[:-1])
     between = (mu[-1] * w0 - mu) ** 2 / (w0 * (1 - w0) + 1e-12)
-    hi = lum > edges[int(np.argmax(between))]
+    # argmax is the last bin of the dark class, so the split is that bin's right edge
+    hi = lum > edges[int(np.argmax(between)) + 1]
     ink = hi if hi.mean() <= 0.5 else ~hi
     if ink.all() or not ink.any():
-        return {"font_px": 0.0, "contrast": 1.0}
+        return {"font_px": 0.0, "contrast": 1.0, "lines": 0, "clipped": clipped}
     l_ink, l_bg = float(np.median(lum[ink])), float(np.median(lum[~ink]))
     contrast = (max(l_ink, l_bg) + 0.05) / (min(l_ink, l_bg) + 0.05)
-    rows = ink.sum(axis=1)
-    dense = np.nonzero(rows >= 0.25 * rows.max())[0]
-    top = np.nonzero(rows >= max(1, 0.03 * rows.max()))[0][0]
-    cap = float(dense[-1] - top + 1) * 1080 / short
-    return {"font_px": round(cap / 0.72, 1), "contrast": round(contrast, 1)}
+    bands = line_bands(ink.sum(axis=1))
+    ratio = 0.92 if is_cjk(text) else 0.72
+    sizes = [(b - a + 1) / ratio for a, b in bands]
+    for i in range(1, len(bands)):  # tight leading: type can't be larger than its line spacing
+        if sizes[i - 1] >= 0.6 * sizes[i]:
+            sizes[i] = min(sizes[i], float(bands[i][1] - bands[i - 1][1]))
+    return {"font_px": round(max(sizes, default=0.0) * 1080 / short, 1), "contrast": round(contrast, 1),
+            "lines": len(bands), "clipped": clipped}
 
 
 TEXT_FLOORS = {"hook": 84, "cta": 48, "term": 48}  # font px at a 1080 short side (craft.md §6)
 MIN_CONTRAST = 7.0
+
+
+def valid_box(box):
+    return (isinstance(box, list) and len(box) == 4
+            and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in box))
 
 
 def beat_times(tl):
@@ -427,10 +489,11 @@ def main():
         hook_t = [i * 0.5 for i in range(7) if i * 0.5 < dur]
         hook_sheet = sheet(video, hook_t, 360, 7, fps, out / "hook_sheet.jpg", tmp)
         for i, x in enumerate(texts):
-            if isinstance(x["from"], (int, float)) and isinstance(x["box"], list) and len(x["box"]) == 4:
+            if isinstance(x["from"], (int, float)) and valid_box(x["box"]):
                 t = min(float(x["from"]) + 0.1, dur - 1 / fps)
                 im = grab(video, t, info["w"], tmp, f"text_{i:02d}")
-                x.update(measure_text(im, x["box"], min(info["w"], info["h"])) if im else {}, at=round(t, 2))
+                m = measure_text(im, x["box"], min(info["w"], info["h"]), x["text"]) if im else {}
+                x.update(m, at=round(t, 2), off_frame=bool(im) and not m)
 
     checks = []
 
@@ -449,15 +512,18 @@ def main():
         name, floor = f"{x['role']} text", TEXT_FLOORS[x["role"]]
         if "font_px" not in x:
             why = ("no time (from, or in naming a beat)" if not isinstance(x["from"], (int, float)) else
-                   "no box [x, y, w, h]" if not (isinstance(x["box"], list) and len(x["box"]) == 4) else
+                   "no box [x, y, w, h]" if not valid_box(x["box"]) else
+                   "the box is empty or outside the frame" if x.get("off_frame") else
                    "the frame could not be grabbed")
             add("WARN", name, f"'{x['text'][:40]}': {why}, so size and contrast are unmeasured; "
                 "check hook_sheet.jpg")
             continue
         ok = x["font_px"] >= floor and x["contrast"] >= MIN_CONTRAST
-        add("PASS" if ok else "FAIL", name,
-            f"'{x['text'][:40]}' at {x['at']} s: ~{x['font_px']} px font (>= {floor}), "
-            f"contrast {x['contrast']}:1 (>= {MIN_CONTRAST:g}:1)")
+        lines = f", largest of {x['lines']} lines" if x["lines"] > 1 else ""
+        clip = "; box runs off the frame, so the text may be cropped" if x["clipped"] else ""
+        add("FAIL" if not ok else "WARN" if clip else "PASS", name,
+            f"'{x['text'][:40]}' at {x['at']} s: ~{x['font_px']} px font{lines} (>= {floor}), "
+            f"contrast {x['contrast']}:1 (>= {MIN_CONTRAST:g}:1){clip}")
     add("FAIL" if pic["flashes"] else "PASS", "single-frame flashes",
         f"at {pic['flashes']}" if pic["flashes"] else "none")
     add("WARN" if pic["pops"] else "PASS", "pops",
