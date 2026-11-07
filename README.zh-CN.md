@@ -1,3 +1,7 @@
+[哔哩哔哩主页](https://space.bilibili.com/3493277319825652)
+
+### [🚀在哔哩哔哩观看视频](https://www.bilibili.com/video/BV1bQ4n6GENf/)
+
 # video-director
 
 **核心目标模型：Claude Opus 5.5 · 推荐搭配 Claude Code 使用**
@@ -7,8 +11,6 @@
 **video-director 是一套主要面向 Claude Opus 5.5（Claude Code）的代码视频制作 Skill**：引导模型使用 HTML、Canvas、SVG、Three.js、GSAP 或 Remotion 编写短视频，并逐帧渲染为 MP4。适用于产品发布片、宣传短片、讲解视频、数据故事、动态文字、角色与插画动画、循环动画以及社交媒体短视频。
 
 这个 Skill 将 **Claude Opus 5.5** 视为导演与编程执行者：**用可量化的参数规划影片，以确定性的方式构建，再用检测工具检查不易凭主观观看或听觉判断的问题**。它包含阐明原因的制作原则、每个阶段都有检查关口的工作流，以及两套质量验证脚本。项目刻意没有附带可直接照搬的镜头素材库。
-
-[在哔哩哔哩观看视频](https://www.bilibili.com/video/BV1bQ4n6GENf/)
 
 ## 动画演示
 

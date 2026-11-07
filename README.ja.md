@@ -1,3 +1,7 @@
+[Bilibili プロフィール](https://space.bilibili.com/3493277319825652)
+
+### [🚀Bilibili で動画を見る](https://www.bilibili.com/video/BV1bQ4n6GENf/)
+
 # video-director
 
 **主な対象モデル：Claude Opus 5.5 · Claude Code 向け**
@@ -7,8 +11,6 @@
 **video-director は、主に Claude Code 上の Claude Opus 5.5 向けに作られています。** モデルを導いて、短い動画をコード（HTML、Canvas、SVG、Three.js、GSAP、Remotion）として作成し、1 フレームずつ MP4 にレンダリングさせます。ローンチフィルム、プロモーション、解説動画、データストーリー、キネティックタイポグラフィ、キャラクターやイラストのショート、ループ動画、SNS 向けのリールに対応しています。
 
 このスキルは **Claude Opus 5.5** を監督兼コーディングエージェントとして扱います。映像を数値で計画し、決定論的に組み立て、見ることも聞くこともできない部分は測定します。理由を添えた原則、各フェーズにゲートを設けたワークフロー、2 つの QA スクリプトを備えています。コピーするためのショットライブラリは、意図的に同梱していません。
-
-[Bilibili で動画を見る](https://www.bilibili.com/video/BV1bQ4n6GENf/)
 
 ## アニメーションのデモ
 

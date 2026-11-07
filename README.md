@@ -1,3 +1,7 @@
+[Bilibili profile](https://space.bilibili.com/3493277319825652)
+
+### [🚀Watch the video on Bilibili](https://www.bilibili.com/video/BV1bQ4n6GENf/)
+
 # video-director
 
 **Primary model: Claude Opus 5.5 · For Claude Code**
@@ -7,8 +11,6 @@
 **video-director is built primarily for Claude Opus 5.5 in Claude Code.** It guides the model to create short videos as code (HTML, Canvas, SVG, Three.js, GSAP or Remotion), rendered frame by frame to MP4. It covers launch films, promos, explainers, data stories, kinetic type, character and illustrated shorts, loops and social reels.
 
 The skill treats **Claude Opus 5.5** as the director and coding agent: plan the film in numbers, build it deterministically, then measure what it can't watch or hear. It holds principles with their reasons, a workflow with a gate at each phase, and two QA scripts. It deliberately ships no shot library to copy.
-
-[Watch the video on Bilibili](https://www.bilibili.com/video/BV1bQ4n6GENf/)
 
 ## Animation demo
 
