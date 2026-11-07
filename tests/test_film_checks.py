@@ -191,10 +191,10 @@ def test_unreadable_film_is_a_clean_exit_2(tmp_path, make):
     assert r.returncode == 2 and "Traceback" not in r.stderr and "can't run" in r.stderr
 
 
-@pytest.mark.parametrize("body", ["{nope", '"text"'])
+@pytest.mark.parametrize("body", [b"{nope", b'"text"', b"\xff\xfe"])
 def test_unreadable_timeline_is_a_clean_exit_2(plain, tmp_path, body):
     tl = tmp_path / "t.json"
-    tl.write_text(body)
+    tl.write_bytes(body)
     r = run_raw(plain, "--out", tmp_path / "qa", "--beats", tl)
     assert r.returncode == 2 and "Traceback" not in r.stderr
 
@@ -202,6 +202,7 @@ def test_unreadable_timeline_is_a_clean_exit_2(plain, tmp_path, body):
 @pytest.mark.parametrize("extra", [
     {"hero": 6}, {"hero": {"t": "later"}}, {"silences": [{"from": "a.x", "to": "a.y"}, 3]},
     {"cuts": 4}, {"texts": 3}, {"texts": [{"role": ["hook"]}, 3]}, {"scenes": ["x"]}, {"beats": "x"},
+    {"texts": [{"text": "x", "in": ["a.x"], "role": "hook"}]},
     {"meta": "x"}, {"texts": [{"text": "x", "from": 0.5, "role": "hook", "box": [0, 0, "w", 10]}]},
     {"texts": [{"text": "x", "from": 0.5, "role": "hook", "box": [0, 0, 0, 0]}]},
     {"texts": [{"text": "x", "from": 0.5, "role": "hook", "box": [900, 900, 10, 10]}]},
@@ -210,6 +211,27 @@ def test_malformed_timeline_fields_do_not_crash(plain, tmp_path, extra):
     code, levels, report = run_qa(plain, tmp_path / "qa", "--beats", timeline(tmp_path, **extra))
     assert report, "the run should still produce a report"
     assert code in (0, 1)
+
+
+@pytest.mark.parametrize("px, level", [(100, "PASS"), (30, "WARN")])
+def test_declared_px_is_compared_with_the_measurement(tmp_path, px, level):
+    from PIL import Image, ImageDraw, ImageFont
+    im = Image.new("RGB", (W * 3, H * 3), (16, 16, 18))
+    ImageDraw.Draw(im).text((40, 100), "Ship it", font=ImageFont.load_default(size=100), fill="white")
+    frame = np.asarray(im)
+    film = tmp_path / "f.mp4"
+    render(film, lambda i: frame, 60, W * 3, H * 3)
+    tl = timeline(tmp_path, meta={"w": W * 3, "h": H * 3, "fps": 30, "dur": 2, "clock": "reads"},
+                  texts=[{"text": "Ship it", "from": 0.2, "role": "cta", "px": px,
+                          "box": [30, 90, 500, 160]}])
+    _, levels, report = run_qa(film, tmp_path / "qa", "--beats", tl)
+    assert levels["cta text"] == [level], report["texts"]
+
+
+@pytest.mark.parametrize("args", [("--times", "1,abc"), ("--expect-cuts", "x")])
+def test_bad_times_are_a_clean_exit_2(plain, tmp_path, args):
+    r = run_raw(plain, "--out", tmp_path / "qa", *args)
+    assert r.returncode == 2 and "Traceback" not in r.stderr
 
 
 def test_box_outside_the_frame_says_so(plain, tmp_path):

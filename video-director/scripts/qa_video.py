@@ -293,41 +293,58 @@ def sheet(path, times, width, cols, fps, dest, tmp):
     return str(dest)
 
 
-def is_cjk(text):
-    """True if most of the letters are Chinese, Japanese or Korean."""
-    letters = [c for c in str(text) if c.isalnum()]
-    cjk = sum(1 for c in letters if "\u3040" <= c <= "\u30ff" or "\u3400" <= c <= "\u9fff"
-              or "\uac00" <= c <= "\ud7a3" or "\uf900" <= c <= "\ufaff" or "\uff66" <= c <= "\uff9f")
-    return bool(letters) and cjk * 2 > len(letters)
+def cjk_char(c):
+    return ("\u3040" <= c <= "\u30ff" or "\u3400" <= c <= "\u9fff" or "\uac00" <= c <= "\ud7a3"
+            or "\uf900" <= c <= "\ufaff" or "\uff66" <= c <= "\uff9f")
+
+
+def glyph_ratio(text):
+    """Height of the text's tallest glyphs as a share of the font size, from what it says.
+
+    One CJK character sets the height of its line (about 0.92 of the em). Latin caps, ascenders
+    and digits sit at about 0.72 in most faces, and text with only x-height letters at about 0.52.
+    """
+    text = str(text)
+    if any(cjk_char(c) for c in text):
+        return 0.92
+    letters = [c for c in text if c.isalnum()]
+    return 0.52 if letters and all(c in "acemnorsuvwxzgpqy" for c in letters) else 0.72
 
 
 def line_bands(rows):
     """[(top, baseline)] for each line of text, from ink per pixel row.
 
-    Blank rows split lines; inside a block with none, so does a valley under 12% of its densest
-    row, which is what tight leading leaves where descenders meet the next line's ascenders. A
-    short band just above a taller one (the dot of an i, the bar of a T over lowercase) joins it.
-    The baseline is the last row at half the band's 70th-percentile ink: descenders are sparser than
-    that, while the stems at the foot of a line of capitals are not.
+    Blank rows split lines. Inside a block with none, so does a valley under 12% of its densest
+    row, which is what tight leading leaves where descenders meet the next line's ascenders,
+    but only if the bands on both sides are taller than the valley: the thin rows of serifs at
+    the top and foot of one line are the opposite, and fragments under half the block's tallest
+    band are ascenders or descenders, not lines. Across blank rows, a short band just above a
+    taller one (the dot of an i) joins it, and one just below (an underline) is dropped. The baseline is the last row at half the band's 70th-percentile ink:
+    descenders are sparser than that, while the stems at the foot of capitals are not.
     """
     bands = []
     for a, b in runs(rows >= max(1, 0.03 * rows.max())):
-        bands += [(a + c, a + d) for c, d in runs(rows[a:b] >= 0.12 * rows[a:b].max())]
+        parts = [(a + c, a + d) for c, d in runs(rows[a:b] >= 0.12 * rows[a:b].max())]
+        split = parts[:1]
+        for c, d in parts[1:]:
+            pa, pb = split[-1]
+            if min(pb - pa, d - c) < c - pb:
+                split[-1] = (pa, d)
+            else:
+                split.append((c, d))
+        tallest = max(d - c for c, d in split)
+        bands += [(c, d) for c, d in split if d - c >= 0.5 * tallest]
+    short = lambda band, ref, gap: band[1] - band[0] < 0.25 * (ref[1] - ref[0]) and gap < 0.25 * (ref[1] - ref[0])
     joined = []
-    for a, b in reversed(bands):
-        if joined:
-            below_a, below_b = joined[-1]
-            tall = below_b - below_a
-            if b - a < 0.25 * tall and below_a - b < 0.2 * tall:
-                joined[-1] = (a, below_b)
-                continue
-        joined.append((a, b))
-    kept = []
-    for a, b in reversed(joined):  # top to bottom now: loose descenders join the line above
-        if kept and b - a < 0.35 * (kept[-1][1] - kept[-1][0]) and a - kept[-1][1] < 0.35 * (kept[-1][1] - kept[-1][0]):
-            kept[-1] = (kept[-1][0], b)
+    for band in reversed(bands):
+        if joined and short(band, joined[-1], joined[-1][0] - band[1]):
+            joined[-1] = (band[0], joined[-1][1])
         else:
-            kept.append((a, b))
+            joined.append(band)
+    kept = []
+    for band in reversed(joined):  # top to bottom now
+        if not (kept and short(band, kept[-1], band[0] - kept[-1][1])):
+            kept.append(band)
     out, prev_end = [], 0
     for a, b in kept:
         start = prev_end + int(np.argmin(rows[prev_end:a])) if a > prev_end else a
@@ -348,8 +365,10 @@ def measure_text(im, box, short, text=""):
     so descenders don't count, and it is taken line by line, so a three-line block isn't read as
     one huge line. Lines of a similar size are also capped at their baseline spacing, because
     at tight leading the descenders above can't be told from the ascenders below. With several
-    lines the largest counts: give a smaller line its own texts[] entry. Latin caps and ascenders sit at about 0.72 of the font size in most faces (within
-    ~2 px of the set size on Inter and JetBrains Mono); CJK glyphs fill about 0.92 of the em.
+    lines the largest counts: give a smaller line its own texts[] entry. The height becomes a font
+    size through glyph_ratio(). This is an estimate from pixels, good to about 25%: lines dense
+    with descenders read high, and a box across a hard change of background misleads Otsu. So
+    main() compares it with the timeline's declared px.
     """
     x, y, w, h = (int(round(float(v))) for v in box)
     x0, y0, x1, y1 = max(x, 0), max(y, 0), min(x + w, im.width), min(y + h, im.height)
@@ -372,7 +391,7 @@ def measure_text(im, box, short, text=""):
     l_ink, l_bg = float(np.median(lum[ink])), float(np.median(lum[~ink]))
     contrast = (max(l_ink, l_bg) + 0.05) / (min(l_ink, l_bg) + 0.05)
     bands = line_bands(ink.sum(axis=1))
-    ratio = 0.92 if is_cjk(text) else 0.72
+    ratio = glyph_ratio(text)
     sizes = [(b - a + 1) / ratio for a, b in bands]
     for i in range(1, len(bands)):  # tight leading: type can't be larger than its line spacing
         if sizes[i - 1] >= 0.6 * sizes[i]:
@@ -386,12 +405,11 @@ MIN_CONTRAST = 7.0
 
 
 def valid_box(box):
-    return (isinstance(box, list) and len(box) == 4
-            and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in box))
+    return isinstance(box, list) and len(box) == 4 and all(is_num(v) for v in box)
 
 
 def is_num(v):
-    return isinstance(v, (int, float)) and not isinstance(v, bool)
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
 
 
 def entries(v):
@@ -433,9 +451,9 @@ def load_timeline(path):
     for x in entries(tl.get("texts")):
         role = x.get("role")
         if isinstance(role, str) and role in TEXT_FLOORS:
-            t = float(x["from"]) if is_num(x.get("from")) else named.get(x.get("in"))
-            texts.append({"text": str(x.get("text", x.get("id", "?"))), "role": role,
-                          "from": t, "box": x.get("box")})
+            t = float(x["from"]) if is_num(x.get("from")) else named.get(str(x.get("in")))
+            texts.append({"text": str(x.get("text", x.get("id", "?"))), "role": role, "from": t,
+                          "box": x.get("box"), "px": x.get("px") if is_num(x.get("px")) else None})
     return {"beats": sorted(set(beats)), "hero": hero if is_num(hero) else None,
             "cuts": nums(tl["cuts"]) if isinstance(tl.get("cuts"), list) else [],
             "silences": [x for x in entries(tl.get("silences")) if is_num(x.get("from")) and is_num(x.get("to"))],
@@ -481,6 +499,13 @@ def loudness_verdict(lufs, peak, target, max_peak, name="loudness"):
     show = lambda v, unit: f"{unit} unmeasured" if v is None else f"{v} {unit}"
     return level, name, (f"{show(lufs, 'LUFS')} (target {target} +/-1), "
                          f"true peak {show(peak, 'dBTP')} (<= {max_peak})")
+
+
+def seconds(csv):
+    try:
+        return [float(x) for x in csv.split(",") if x.strip()]
+    except ValueError:
+        raise RuntimeError(f"expected comma-separated seconds, got '{csv}'") from None
 
 
 def finite(v):
@@ -536,9 +561,9 @@ def main():
         planned_sil, clock, texts = tl["silences"], tl["clock"], tl["texts"]
         args.loop = args.loop or tl["loop"]
     if args.times:
-        beats = sorted(float(x) for x in args.times.split(",") if x.strip())
+        beats = sorted(seconds(args.times))
     if args.expect_cuts:
-        planned_cuts = sorted(float(x) for x in args.expect_cuts.split(",") if x.strip())
+        planned_cuts = sorted(seconds(args.expect_cuts))
 
     st = frame_stats(video, info)
     pic = analyse_picture(st, fps, args)
@@ -594,11 +619,15 @@ def main():
                 "check hook_sheet.jpg")
             continue
         ok = x["font_px"] >= floor and x["contrast"] >= MIN_CONTRAST
+        plan_short = min(meta[k] for k in ("w", "h")) if all(is_num(meta.get(k)) for k in ("w", "h")) else None
+        declared = x["px"] * 1080 / (plan_short or min(info["w"], info["h"])) if x["px"] else None
+        differs = declared is not None and abs(x["font_px"] - declared) > 0.25 * declared
+        note = f"; the timeline declares ~{declared:.0f} px, so check the box and px" if differs else ""
         lines = f", largest of {x['lines']} lines" if x["lines"] > 1 else ""
         clip = "; box runs off the frame, so the text may be cropped" if x["clipped"] else ""
-        add("FAIL" if not ok else "WARN" if clip else "PASS", name,
+        add("FAIL" if not ok else "WARN" if clip or differs else "PASS", name,
             f"'{x['text'][:40]}' at {x['at']} s: ~{x['font_px']} px font{lines} (>= {floor}), "
-            f"contrast {x['contrast']}:1 (>= {MIN_CONTRAST:g}:1){clip}")
+            f"contrast {x['contrast']}:1 (>= {MIN_CONTRAST:g}:1){clip}{note}")
     add("FAIL" if pic["flashes"] else "PASS", "single-frame flashes",
         f"at {pic['flashes']}" if pic["flashes"] else "none")
     add("WARN" if pic["pops"] else "PASS", "pops",
@@ -669,6 +698,6 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except (RuntimeError, OSError, json.JSONDecodeError) as e:
+    except (RuntimeError, OSError, json.JSONDecodeError, UnicodeDecodeError) as e:
         print(f"qa_video: can't run: {e}", file=sys.stderr)
         sys.exit(2)

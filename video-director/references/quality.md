@@ -46,7 +46,7 @@ Automated gates catch what is *broken*, not what is *bad*. Run them first so the
 | Revision scope | After a fix, re-render frames outside its scope from the old and new code (`seek(t)` captures, before encoding) and diff them | Collateral changes from a fix | Pixel-identical. For an element-scoped fix, mask the element's bounds in both and compare the rest. Don't diff two MP4s: the encoder spreads differences on both sides of an edit |
 | Leaks | Grep committed files and rendered text for process words, placeholders ("Acme", "lorem", "Your headline"), debug labels, card names | Template residue | Zero; also *watch the last seconds*, because text drawn into images can't be grepped |
 
-`scripts/check_timeline.py` covers the timeline, the hook timing and declared sizes, text holds and terms. `scripts/qa_video.py` covers the render against the plan, the measured hook, CTA and term text, frame 0, pops/flashes, frozen and flat frames, cuts vs plan, loudness, dramatic arc, loop seam and the contact sheets. The page-level checks (determinism, read time, text bounds, revision scope) need the page contract (craft.md §12).
+`scripts/check_timeline.py` covers the timeline, the hook timing and declared sizes, text holds and terms. The size `qa_video.py` reports is estimated from pixels and good to about 25%, so it warns when that disagrees with the declared `px`. `scripts/qa_video.py` covers the render against the plan, the measured hook, CTA and term text, frame 0, pops/flashes, frozen and flat frames, cuts vs plan, loudness, dramatic arc, loop seam and the contact sheets. The page-level checks (determinism, read time, text bounds, revision scope) need the page contract (craft.md §12).
 
 ## 2. Visual review protocol
 
