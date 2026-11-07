@@ -36,7 +36,8 @@ Automated gates catch what is *broken*, not what is *bad*. Run them first so the
 | Beat sync (rendered) | Re-fit the grid on the rendered audio and compare it with picture cuts | Sync that drifts or shifts after the encode | ≤ 3 frames (≤ 1.5 ideal) |
 | Loudness | ebur128 on the delivered file | Too quiet, too loud, clipped master | −14 LUFS ±1, TP ≤ −1 dBTP |
 | Dramatic arc | Loudest 100 ms; silences (definition in sound.md §5); planned silences measured | Payoff not loudest; no silence before it; a planned silence that is really a quiet bed | Loudest moment on the payoff (for a voice clock: the loudest non-voice hit, in a VO pause); a silence precedes it; every planned silence is actually silent |
-| Loop seam | Last→first difference vs the median step; speed going into frame 0 vs speed coming out | Loops that match in position but jump in momentum | Seam ≤ 2× median (or < 0.5/255 when the film is mostly still); speed ratio 0.5–2 |
+| Loop seam | Last→first difference vs the median step; speed going into frame 0 vs speed coming out | Loops that match in position but jump in momentum; a last frame that repeats the first | Seam ≤ 2× median (or < 0.5/255 when the film is mostly still); speed ratio 0.5–2 |
+| Render vs plan | Size, frame rate and length against `meta`; constant frame rate | Wrong aspect, a slipped duration, a variable-rate encode | Same aspect (a lower-resolution draft warns); within 2 frames of `meta.dur`; constant frame rate |
 | Anchor stability | Track the hero's screen position | A hero that drifts in the fast section | ≥ 95% of frames within ~40 px of its anchor |
 | ASR on VO | Whisper on each TTS line and on the final mix | Mispronunciations, garbled numbers | Matches the script |
 | Resolution | Source pixels per screen pixel for every image | Upscaled mush | ≥ 1 for photos |
@@ -45,7 +46,7 @@ Automated gates catch what is *broken*, not what is *bad*. Run them first so the
 | Revision scope | After a fix, re-render frames outside its scope from the old and new code (`seek(t)` captures, before encoding) and diff them | Collateral changes from a fix | Pixel-identical. For an element-scoped fix, mask the element's bounds in both and compare the rest. Don't diff two MP4s: the encoder spreads differences on both sides of an edit |
 | Leaks | Grep committed files and rendered text for process words, placeholders ("Acme", "lorem", "Your headline"), debug labels, card names | Template residue | Zero; also *watch the last seconds*, because text drawn into images can't be grepped |
 
-`scripts/check_timeline.py` covers the timeline, the hook timing and declared sizes, text holds and terms. `scripts/qa_video.py` covers the measured hook, CTA and term text, frame 0, pops/flashes, frozen and flat frames, cuts vs plan, loudness, dramatic arc, loop seam and the contact sheets. The page-level checks (determinism, read time, text bounds, revision scope) need the page contract (craft.md §12).
+`scripts/check_timeline.py` covers the timeline, the hook timing and declared sizes, text holds and terms. `scripts/qa_video.py` covers the render against the plan, the measured hook, CTA and term text, frame 0, pops/flashes, frozen and flat frames, cuts vs plan, loudness, dramatic arc, loop seam and the contact sheets. The page-level checks (determinism, read time, text bounds, revision scope) need the page contract (craft.md §12).
 
 ## 2. Visual review protocol
 
