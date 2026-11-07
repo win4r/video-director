@@ -191,10 +191,10 @@ def test_unreadable_film_is_a_clean_exit_2(tmp_path, make):
     assert r.returncode == 2 and "Traceback" not in r.stderr and "can't run" in r.stderr
 
 
-@pytest.mark.parametrize("body", ["{nope", '"text"'])
+@pytest.mark.parametrize("body", [b"{nope", b'"text"', b"\xff\xfe"])
 def test_unreadable_timeline_is_a_clean_exit_2(plain, tmp_path, body):
     tl = tmp_path / "t.json"
-    tl.write_text(body)
+    tl.write_bytes(body)
     r = run_raw(plain, "--out", tmp_path / "qa", "--beats", tl)
     assert r.returncode == 2 and "Traceback" not in r.stderr
 

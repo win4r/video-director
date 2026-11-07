@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+import numpy as np
 import pytest
 from PIL import Image, ImageDraw, ImageFont
 
@@ -168,16 +169,22 @@ def test_x_height_text_reads_at_its_set_size(qa):
     assert m["font_px"] == pytest.approx(100, rel=0.15)
 
 
+SERIF_LINE = [0, 11, 41, 56, 59, 58, 60, 62, 60, 58, 54, 48, 42, 35, 35] + [24] * 12 + [84, 214, 237, 248, 219, 204, 143] \
+    + [125] * 40 + [162, 204, 277, 262, 242, 28, 0]  # Georgia 96 px, "this is fine": ascenders above a gap
+
+
 @pytest.mark.parametrize("rows, lines", [
-    ([0, 80, 80, 8, 8, 8, 8, 8, 8, 8, 8, 8, 80, 80, 0], 1),  # serifs: thin rows, wide valley
+    ([0, 80, 80] + [8] * 9 + [80, 80, 0], 1),  # serifs alone: thin rows, wide valley
+    (SERIF_LINE, 1),
+    (SERIF_LINE + SERIF_LINE, 2),
     ([0, 80] + [90] * 20 + [8] * 4 + [90] * 20 + [80, 0], 2),  # tight leading: tall bands, thin valley
-    ([0] + [90] * 30 + [0] * 6 + [5] * 2 + [90] * 8 + [0], 2),  # an underline sized band stays apart only if far
+    ([0] + [100] * 30 + [40] * 8 + [0], 1),  # a descender zone stays with its line
+    ([0] + [90] * 30 + [0] * 3 + [90] * 4 + [0], 1),  # an underline just below is not a line
+    ([0] + [90] * 5 + [0] * 3 + [90] * 30 + [0], 1),  # nor is the dot of an i above
+    ([0] + [90] * 10 + [0] * 20 + [90] * 30 + [0], 2),  # a far-off small line is
 ])
 def test_line_bands_on_profiles(qa, rows, lines):
-    import numpy as np
-    assert len(qa.line_bands(np.array(rows))) >= 1
-    if lines < 2:
-        assert len(qa.line_bands(np.array(rows))) == lines
+    assert len(qa.line_bands(np.array(rows))) == lines
 
 
 def test_underline_is_not_part_of_the_line(qa):
