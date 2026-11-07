@@ -93,7 +93,7 @@ def test_cjk_said_but_not_shown_warns(tmp_path):
     ("短", 1.8, False),
     ("two words", 1.6, False),
     ("Claude Code 是一个命令行工具", 3.9, False),  # 8 / 4.5 + 0.6 + 1.5 = 3.88 s
-    ("Claude Code 是一个命令行工具", 1.9, True),
+    ("Claude Code 是一个命令行工具", 3.5, True),  # needs the Latin words added
     ("two words", 1.2, True),
 ])
 def test_read_time(tmp_path, s, hold, warns):
@@ -107,6 +107,7 @@ def test_read_time(tmp_path, s, hold, warns):
     ("这是一段字幕", 2.0, False),
     ("a caption of a few words", 2.0, False),
     ("TypeScript 类型系统完全入门", 1.0, True),
+    ("TypeScript Rust 类型", 0.8, True),  # 2 + 2 x 2 = 6 in 0.8 s; the CJK alone is under the limit
     ("a caption of a fair few more words than that", 1.0, True),
 ])
 def test_caption_rate(tmp_path, s, secs, warns):

@@ -183,7 +183,14 @@ def test_line_bands_on_profiles(qa, rows, lines):
 def test_underline_is_not_part_of_the_line(qa):
     im = card(["Ship it"], 70)
     ImageDraw.Draw(im).rectangle([20, 100, 400, 105], fill="white")
-    assert qa.measure_text(im, [0, 0, 1400, 130], 1080)["font_px"] == pytest.approx(70, rel=0.15)
+    m = qa.measure_text(im, [0, 0, 1400, 130], 1080)
+    assert m["font_px"] == pytest.approx(70, rel=0.15)
+    assert m["lines"] == 1
+
+
+def test_negative_leading_is_capped_at_the_line_spacing(qa):
+    im = card(["Happy typing", "Gently jumping", "Quietly glowing"], 90, 0.9, wide=1600)
+    assert qa.measure_text(im, whole(im), 1080)["font_px"] == pytest.approx(90, rel=0.05)
 
 
 def test_small_subtitle_doesnt_stretch_the_title(qa):
