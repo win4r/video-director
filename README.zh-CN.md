@@ -2,7 +2,7 @@
 
 **核心目标模型：Claude Opus 5.5 · 推荐搭配 Claude Code 使用**
 
-[English](README.md) | **简体中文**
+[English](README.md) | **简体中文** | [日本語](README.ja.md)
 
 **video-director 是一套主要面向 Claude Opus 5.5（Claude Code）的代码视频制作 Skill**：引导模型使用 HTML、Canvas、SVG、Three.js、GSAP 或 Remotion 编写短视频，并逐帧渲染为 MP4。适用于产品发布片、宣传短片、讲解视频、数据故事、动态文字、角色与插画动画、循环动画以及社交媒体短视频。
 
