@@ -1,6 +1,6 @@
-[Bilibili プロフィール](https://space.bilibili.com/3493277319825652)
+# [🚀Bilibili プロフィール](https://space.bilibili.com/3493277319825652)
 
-### [🚀Bilibili で動画を見る](https://www.bilibili.com/video/BV1bQ4n6GENf/)
+# [🚀Bilibili で動画を見る](https://www.bilibili.com/video/BV1bQ4n6GENf/)
 
 # video-director
 
