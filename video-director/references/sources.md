@@ -1,6 +1,6 @@
 # Sources
 
-This skill synthesizes the methodology of eight public repositories. Everything here is paraphrased; no reference file was copied. Each principle came from several projects reaching it independently. The full extraction, with the evidence per principle and the tensions between sources, is in `METHODOLOGY.md` alongside this skill's source.
+This skill synthesizes the methodology of eight public repositories. Everything here is paraphrased; no reference file was copied. Each principle came from several projects reaching it independently. The full extraction, with the evidence per principle and the tensions between sources, is in `METHODOLOGY.md` in the skill's repository (github.com/win4r/video-director), not in this folder.
 
 | Repository | Main ideas drawn from it |
 |---|---|

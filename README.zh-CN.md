@@ -93,6 +93,18 @@ python3 video-director/scripts/qa_video.py film.mp4 --out qa/ --beats timeline.j
 
 **评测限制：** 每个配置只运行一次，因此这些结果只能作为趋势参考，不能当作具有充分重复验证的性能结论。角色动画、插画动画、局部修复和实时网页相关的规则是在第 2 轮之后加入的，**尚未接受上述评测**。这些结果也不能作为 Claude Opus 5.5 与其他模型之间的独立对照测试。
 
+## 开发
+
+测试会用 ffmpeg 自行生成影片，然后检查两个脚本和 Skill 文档。CI 会在每个 Pull Request 上运行这些测试。
+
+```bash
+pip install numpy Pillow pytest
+```
+
+```bash
+pytest -q
+```
+
 ## 许可证
 
 [MIT](LICENSE)

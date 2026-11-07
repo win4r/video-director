@@ -83,6 +83,18 @@ Each round ran the three briefs once per configuration. Script checks graded the
 
 Round 1 showed the skill catching craft basics (a black first frame, text under the Reels caption, quiet audio). It also showed two gaps: a tagline held back until 11 s, and an explainer that never said "false positive". Round 2 added the rules that fixed them. The hook and any call to action are on screen by 3 s with the sound off, at measured size and contrast. The terms the audience searches for are said and shown. Labels never sit on numbers that are still counting. With one run per configuration, treat these as a direction, not a measurement. The guidance for character and illustrated films, revisions and live pages was added after round 2 and hasn't been evaluated yet. These results do not establish a controlled comparison of Claude Opus 5.5 against other models.
 
+## Development
+
+The tests build their own films with ffmpeg, then check both scripts and the skill's documents. CI runs them on every pull request.
+
+```bash
+pip install numpy Pillow pytest
+```
+
+```bash
+pytest -q
+```
+
 ## License
 
 [MIT](LICENSE)
