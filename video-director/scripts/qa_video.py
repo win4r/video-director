@@ -348,6 +348,30 @@ def load_timeline(path):
 
 # ---------------------------------------------------------------- report
 
+def loudness_verdict(lufs, peak, target, max_peak, name="loudness"):
+    """(level, name, detail). What was measured can fail; what wasn't can't pass, so it warns."""
+    bad = (lufs is not None and abs(lufs - target) > 1.0) or (peak is not None and peak > max_peak)
+    level = "FAIL" if bad else "WARN" if lufs is None or peak is None else "PASS"
+    show = lambda v, unit: f"{unit} unmeasured" if v is None else f"{v} {unit}"
+    return level, name, (f"{show(lufs, 'LUFS')} (target {target} +/-1), "
+                         f"true peak {show(peak, 'dBTP')} (<= {max_peak})")
+
+
+def finite(v):
+    """report.json must stay strict JSON: -inf (a silent track's peak) and NaN become null."""
+    if isinstance(v, dict):
+        return {k: finite(x) for k, x in v.items()}
+    if isinstance(v, (list, tuple)):
+        return [finite(x) for x in v]
+    if isinstance(v, (float, np.floating)):
+        return float(v) if math.isfinite(v) else None
+    if isinstance(v, np.integer):
+        return int(v)
+    if isinstance(v, np.bool_):
+        return bool(v)
+    return v
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("video")
@@ -460,10 +484,7 @@ def main():
     if aud is None:
         add("INFO", "audio", "no audio stream")
     else:
-        if aud["lufs"] is not None:
-            ok = abs(aud["lufs"] - args.lufs) <= 1.0 and (aud["true_peak"] or -99) <= args.tp
-            add("PASS" if ok else "FAIL", "loudness",
-                f"{aud['lufs']} LUFS (target {args.lufs} +/-1), true peak {aud['true_peak']} dBTP (<= {args.tp})")
+        add(*loudness_verdict(aud["lufs"], aud["true_peak"], args.lufs, args.tp, "loudness"))
         if "loudest_at" in aud:
             msg = f"loudest 100 ms at {aud['loudest_at']} s ({aud['loudest_db']} dBFS)"
             if clock == "voice":
@@ -486,7 +507,7 @@ def main():
     report = {"file": str(video), "info": info, "picture": pic, "cuts_vs_plan": cutcmp,
               "audio": aud, "texts": texts,
               "sheets": {"beats": beat_sheet, "phone": phone_sheet, "hook": hook_sheet}, "checks": checks}
-    (out / "report.json").write_text(json.dumps(report, indent=2, default=float))
+    (out / "report.json").write_text(json.dumps(finite(report), indent=2, allow_nan=False))
     lines = [f"# QA: {video.name}", "",
              f"{info['w']}x{info['h']} @ {fps:.3f} fps, {dur:.2f} s, audio: {info['audio']}", "",
              "| level | check | detail |", "|---|---|---|"]
