@@ -347,7 +347,12 @@ def line_bands(rows):
             kept.append(band)
     out, prev_end = [], 0
     for a, b in kept:
-        start = prev_end + int(np.argmin(rows[prev_end:a])) if a > prev_end else a
+        # Only a later line has a gap above it to look for. The first starts at its first ink,
+        # which is row 0 when the box is tight, so its valley mustn't cut off the ascenders.
+        if not prev_end:
+            start = 0
+        else:
+            start = prev_end + int(np.argmin(rows[prev_end:a])) if a > prev_end else a
         inked = np.nonzero(rows[start:b] >= max(1, 0.03 * rows[a:b].max()))[0]
         solid = np.nonzero(rows[a:b] >= 0.5 * np.percentile(rows[a:b], 70))[0]
         out.append((start + int(inked[0]), a + int(solid[-1])))
