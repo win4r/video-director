@@ -8,9 +8,12 @@ the film, a loop that isn't whole bars, SFX pointing at beats that don't exist, 
 legible by 3 s (or a CTA that only appears later), a hook/CTA/term declared below its size
 floor, and a listed term that is never said or shown.
 WARNs are craft smells: a hero moment spent early, no silence before it, reads and texts held
-too briefly to land, captions faster than 3.5 words/s, a seam with no reason, VO timings
-still ESTIMATED, no terms listed, a term said but not shown (or shown but not said).
-Extra fields are allowed: the schema is a floor, not a cage.
+too briefly to land, captions faster than 3.5 words/s (7 characters/s in Chinese, Japanese
+and Korean), a seam with no reason, overlapping scenes, VO timings still ESTIMATED, no terms
+listed, a term said but not shown (or shown but not said).
+A term matches as whole words, allowing a plural, or anywhere in unspaced CJK text.
+Extra fields are allowed: the schema is a floor, not a cage. A field of the wrong shape is an
+ERROR, not a crash.
 """
 import json
 import re
@@ -19,28 +22,91 @@ from pathlib import Path
 
 HOOK_BY = 3.0
 TEXT_FLOORS = {"hook": 84, "cta": 48, "term": 48}  # font px at a 1080 short side (craft.md §6)
+CAPTION_WPS, CAPTION_CJK_CPS = 3.5, 7.0  # craft.md §2
 
 
 def is_num(v):
     return isinstance(v, (int, float)) and not isinstance(v, bool)
 
 
+def is_cjk(text):
+    """True if most of the letters are Chinese, Japanese or Korean."""
+    letters = [c for c in str(text) if c.isalnum()]
+    cjk = sum(1 for c in letters if cjk_char(c))
+    return bool(letters) and cjk * 2 > len(letters)
+
+
+def cjk_char(c):
+    return ("\u3040" <= c <= "\u30ff" or "\u3400" <= c <= "\u9fff" or "\uac00" <= c <= "\ud7a3"
+            or "\uf900" <= c <= "\ufaff" or "\uff66" <= c <= "\uff9f")
+
+
 def norm(s):
-    return " ".join(re.sub(r"[^\w]+", " ", str(s).lower()).split())
+    return " ".join(re.sub(r"[^\w+#]+", " ", str(s).lower()).split())  # + and # keep C++ apart from C
 
 
-def read_time(text):
-    return max(1.5, 1.0 + 0.3 * len(str(text).split()))  # craft.md §2
+def term_in(term, text):
+    """Whole words, allowing a plural. CJK has no spaces, so there a term is a substring."""
+    term, text = norm(term), norm(text)
+    if not re.search(r"\w", term):
+        return False
+    if any(cjk_char(c) for c in term):
+        return term.replace(" ", "") in text.replace(" ", "")
+    return re.search(r"(?<![\w+#])" + re.escape(term) + r"(?:s|es)?(?![\w+#])", text) is not None
+
+
+def read_time(text):  # craft.md §2
+    text = str(text)
+    if is_cjk(text):
+        return max(1.5, sum(c.isalnum() for c in text) / 4.5 + 1.5)
+    return max(1.5, 1.0 + 0.3 * len(text.split()))
+
+
+def caption_rate(text, secs):
+    """(rate, limit, unit) for a caption on screen for secs."""
+    if is_cjk(text):
+        return sum(c.isalnum() for c in text) / secs, CAPTION_CJK_CPS, "characters/s"
+    return len(text.split()) / secs, CAPTION_WPS, "words/s"
+
+
+def read_json(path):
+    try:
+        return json.loads(Path(path).read_text())
+    except OSError as e:
+        report([f"can't read {path}: {e.strerror}"], [])
+    except ValueError as e:
+        report([f"{path} is not valid JSON: {e}"], [])
 
 
 def main():
     if len(sys.argv) != 2:
         sys.exit(__doc__)
-    tl = json.loads(Path(sys.argv[1]).read_text())
+    tl = read_json(sys.argv[1])
     errors, warns = [], []
     err, warn = errors.append, warns.append
+    if not isinstance(tl, dict):
+        err("the timeline must be a JSON object (schema in references/briefs.md)")
+        report(errors, warns)
 
-    meta = tl.get("meta", {})
+    def dicts(value, label):
+        """The dict entries of a list field; anything else in it is an error."""
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            err(f"{label} must be a list")
+            return []
+        for x in value:
+            if not isinstance(x, dict):
+                err(f"{label}: entry {x!r} must be an object")
+        return [x for x in value if isinstance(x, dict)]
+
+    def numbers(value, label):
+        if value is not None and not isinstance(value, list):
+            err(f"{label} must be a list")
+            return []
+        return value or []
+
+    meta = tl.get("meta") if isinstance(tl.get("meta"), dict) else {}
     for k in ("w", "h", "fps", "dur"):
         if not (is_num(meta.get(k)) and meta[k] > 0):
             err(f"meta.{k} must be a positive number")
@@ -53,16 +119,18 @@ def main():
         err('meta.clock must be "music", "voice" or "reads"')
 
     if clock == "music":
-        if not is_num(meta.get("bpm")):
-            err("music clock needs meta.bpm")
+        meter = re.fullmatch(r"([1-9]\d*)/[1-9]\d*", str(meta.get("meter", "4/4")))
+        if not (is_num(meta.get("bpm")) and meta["bpm"] > 0):
+            err("music clock needs a positive meta.bpm")
+        elif not meter:
+            err(f"meta.meter {meta.get('meter')!r} should look like 4/4")
         elif meta.get("loop"):
-            beats_per_bar = int(str(meta.get("meter", "4/4")).split("/")[0])
-            bar = beats_per_bar * 60.0 / float(meta["bpm"])
+            bar = int(meter.group(1)) * 60.0 / float(meta["bpm"])
             n = dur / bar
             if abs(n - round(n)) * bar > 0.002:
                 err(f"loop is {n:.3f} bars; a music loop must be whole bars ({bar:.4f} s each)")
 
-    scenes = tl.get("scenes", [])
+    scenes = dicts(tl.get("scenes"), "scenes")
     if not scenes:
         err("no scenes")
     beat_names, beat_t = set(), {}
@@ -74,6 +142,8 @@ def main():
             continue
         if a - prev_end > frame:
             err(f"scene {sid}: gap {prev_end:.3f}-{a:.3f} s (empty frames read as loading)")
+        elif prev_end - a > frame:
+            warn(f"scene {sid}: overlaps the scene before it by {prev_end - a:.3f} s")
         prev_end = max(prev_end, b)
         beats = s.get("beats", {})
         items = beats.items() if isinstance(beats, dict) else enumerate(beats or [])
@@ -88,24 +158,38 @@ def main():
             elif not a - frame <= t <= b + frame:
                 warn(f"beat {sid}.{name} = {t} lies outside its scene {a}-{b}")
         if i < len(scenes) - 1:
-            tr = s.get("transitionOut") or {}
-            if not tr.get("why"):
+            tr = s.get("transitionOut")
+            if not (isinstance(tr, dict) and tr.get("why")):
                 warn(f"scene {sid}: transitionOut has no 'why' (every seam needs a reason you can say)")
     if scenes and abs(prev_end - dur) > frame:
         err(f"scenes end at {prev_end:.3f} s but meta.dur is {dur:.3f} s")
 
-    reads = list(tl.get("reads", [])) + [r for s in scenes for r in s.get("reads", [])]
+    reads = dicts(tl.get("reads"), "reads")
+    for s in scenes:
+        reads += dicts(s.get("reads"), f"scene {s.get('id')}: reads")
     for r in reads:
         f, t = r.get("from"), r.get("to")
         if is_num(f) and is_num(t):
             if t - f < 0.6:
                 warn(f"read '{r.get('what', '?')}' gets {t - f:.2f} s: too short to find, understand, register")
 
-    for t in tl.get("cuts", []):
+    for t in numbers(tl.get("cuts"), "cuts"):
         if not (is_num(t) and 0 < t < dur):
             err(f"cut {t} is outside the film")
 
-    hero_raw = (tl.get("hero") or {}).get("t")
+    hero_field = tl.get("hero")
+    if hero_field is not None and not isinstance(hero_field, dict):
+        err('hero must be an object: { "t": seconds, "what": "..." }')
+        hero_field = {}
+    hero_raw = (hero_field or {}).get("t")
+    sil = [x for x in dicts(tl.get("silences"), "silences") if is_num(x.get("from")) and is_num(x.get("to"))]
+    for x in sil:
+        if x["to"] <= x["from"]:
+            err(f"silence {x['from']}-{x['to']} ends before it starts")
+        elif x["from"] < 0 or x["to"] > dur + frame:
+            err(f"silence {x['from']}-{x['to']} is outside the film")
+        elif x["to"] - x["from"] < 0.4:
+            warn(f"silence {x['from']}-{x['to']} is under 0.4 s: it won't register")
     if not is_num(hero_raw):
         warn("no hero.t: name the one moment the film builds to")
     else:
@@ -114,36 +198,36 @@ def main():
             err(f"hero.t = {hero} is outside the film")
         elif hero < 0.4 * dur:
             warn(f"hero moment at {hero:.2f} s ({hero / dur:.0%}): spent early?")
-        sil = [x for x in tl.get("silences", []) if is_num(x.get("from")) and is_num(x.get("to"))]
         if not any(x["to"] <= hero + 0.05 and hero - x["to"] <= 4.0 for x in sil):
             warn("no planned silence in the 4 s before the hero moment")
-        for x in sil:
-            if x["to"] - x["from"] < 0.4:
-                warn(f"silence {x['from']}-{x['to']} is under 0.4 s: it won't register")
 
-    for c in tl.get("sfx", []):
+    for c in dicts(tl.get("sfx"), "sfx"):
         at = c.get("at")
         if isinstance(at, str) and "." in at and at not in beat_names and not at.split(".")[0] == "t":
             err(f"sfx at '{at}' refers to a beat that doesn't exist")
 
-    for c in tl.get("captions", []):
+    captions = dicts(tl.get("captions"), "captions")
+    for c in captions:
         f, t, text = c.get("from"), c.get("to"), str(c.get("text", ""))
         if is_num(f) and is_num(t) and t > f:
-            words = len(text.split())
             if t - f < 0.7:
                 warn(f"caption '{text[:30]}' is on screen {t - f:.2f} s (< 0.7 s)")
-            if words / (t - f) > 3.5:
-                warn(f"caption '{text[:30]}' runs {words / (t - f):.1f} words/s (> 3.5)")
+            rate, limit, unit = caption_rate(text, t - f)
+            if rate > limit:
+                warn(f"caption '{text[:30]}' runs {rate:.1f} {unit} (> {limit:g})")
 
     # texts: from/to in seconds, or in/out naming beats ("scene.beat")
     texts = []
-    for x in tl.get("texts", []):
-        if not isinstance(x, dict):
-            continue
+    for x in dicts(tl.get("texts"), "texts"):
+        for key in ("in", "out"):
+            if x.get(key) is not None and x[key] not in beat_t:
+                err(f"text '{str(x.get('text', x.get('id', '?')))[:30]}': {key} '{x[key]}' is not a beat")
         f = x.get("from") if is_num(x.get("from")) else beat_t.get(x.get("in"))
         t = x.get("to") if is_num(x.get("to")) else beat_t.get(x.get("out"))
         texts.append({**x, "from": f, "to": t})
         label = str(x.get("text", x.get("id", "?")))[:30]
+        if f is not None and f >= dur:
+            err(f"text '{label}' appears at {f:g} s, after the film ends")
         if f is not None and t is not None and t - f < read_time(x.get("text", "")) - frame:
             warn(f"text '{label}' holds {t - f:.2f} s; it needs {read_time(x.get('text', '')):.2f} s to be read")
         role, px = x.get("role"), x.get("px")
@@ -167,28 +251,29 @@ def main():
                                   "(it can return at the end)")
 
     # terms: the words this audience searches for are said and shown (SKILL.md principle 13)
-    vo = tl.get("vo")
-    said = norm(" ".join(str(l.get("text") or " ".join(str(w.get("w", "")) for w in l.get("words", [])))
-                         for l in vo or []))
-    shown = norm(" ".join(str(c.get("text", "")) for c in list(tl.get("captions", [])) + texts))
-    terms = tl.get("terms") or []
+    vo = dicts(tl.get("vo"), "vo")
+    for l in vo:
+        l["words"] = dicts(l.get("words"), f"VO line {l.get('id', '?')}: words")
+    said = " ".join(str(l.get("text") or " ".join(str(w.get("w", "")) for w in l["words"])) for l in vo)
+    shown = " ".join(str(c.get("text", "")) for c in captions + texts)
+    terms = numbers(tl.get("terms"), "terms")
     if not terms:
         warn("no terms: list the 1-3 words this audience would search for (the subject's name, key properties)")
     for term in terms:
-        hit = lambda text: re.search(r"\b" + re.escape(norm(term)), text) is not None
-        if not hit(said) and not hit(shown):
+        in_vo, on_screen = term_in(term, said), term_in(term, shown)
+        if not in_vo and not on_screen:
             err(f"term '{term}' is never said or shown: name it right after the intuition it labels")
-        elif vo and not hit(said):
+        elif vo and not in_vo:
             warn(f"term '{term}' is shown but never said")
-        elif not hit(shown):
+        elif not on_screen:
             warn(f"term '{term}' is said but never on screen: muted viewers miss it")
 
     vo_meta = meta.get("vo") if isinstance(meta.get("vo"), dict) else {}
-    status = str(vo_meta.get("status", "")) + " " + " ".join(str(l.get("status", "")) for l in vo or [])
+    status = str(vo_meta.get("status", "")) + " " + " ".join(str(l.get("status", "")) for l in vo)
     if vo and "ESTIMATED" in status.upper():
         warn("VO timings are ESTIMATED: replace with real word timestamps before stills (phase 3)")
-    for line in vo or []:
-        ts = [w.get("t") for w in line.get("words", []) if is_num(w.get("t"))]
+    for line in vo:
+        ts = [w.get("t") for w in line["words"] if is_num(w.get("t"))]
         if ts != sorted(ts):
             err(f"VO line {line.get('id', '?')}: word times are not increasing")
 

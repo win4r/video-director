@@ -56,7 +56,7 @@ Count holds from the moment the text has **finished arriving** until it starts t
 | On-screen text (CJK) | max(1.5 s, characters ÷ 4.5 + 1.5 s) |
 | Title or chapter card | 2.5–4 s |
 | Final message, wordmark | ≥ 2 s; brand or wordmark holds ≥ 1 s *completely still* |
-| Subtitles | max(1.8 s, spoken duration + 0.6 s) when there's room; ≤ 3.5 words/s (≈ 17 chars/s); no gaps of 1–3 frames between cues. With continuous VO, chunk by phrase and let each cue run until the next one starts. Merge phrases that would come out shorter than 1.8 s rather than overlapping cues |
+| Subtitles | max(1.8 s, spoken duration + 0.6 s) when there's room; ≤ 3.5 words/s (≈ 17 chars/s), or ≤ 7 characters/s in Chinese, Japanese and Korean; no gaps of 1–3 frames between cues. With continuous VO, chunk by phrase and let each cue run until the next one starts. Merge phrases that would come out shorter than 1.8 s rather than overlapping cues |
 | Comparison before its verdict | Each item fully in frame ≥ 2.5 s |
 | Any information-bearing element before a cut | ≥ 1 s still |
 
