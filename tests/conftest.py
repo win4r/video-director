@@ -32,6 +32,18 @@ def ffmpeg(*args):
     subprocess.run(["ffmpeg", "-v", "error", "-y", *map(str, args)], check=True)
 
 
+def render(path, frame, count, w=320, h=180, fps=30, extra=()):
+    """Encode frame(i) -> uint8 RGB array to a near-lossless film."""
+    proc = subprocess.Popen(["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24",
+                             "-s", f"{w}x{h}", "-r", str(fps), "-i", "-", *map(str, extra),
+                             "-c:v", "libx264", "-crf", "4", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
+                             str(path)], stdin=subprocess.PIPE)
+    for i in range(count):
+        proc.stdin.write(frame(i).tobytes())
+    proc.stdin.close()
+    assert proc.wait() == 0
+
+
 def run_qa(video, out, *args):
     """Run qa_video.py as a user would. Returns (exit code, {check name: [levels]}, report)."""
     r = subprocess.run([sys.executable, str(SCRIPTS / "qa_video.py"), str(video), "--out", str(out),

@@ -346,6 +346,7 @@ When the request is a one-liner, expand it into this brief yourself, filling gap
 - **Plan:** `python3 scripts/check_timeline.py timeline.json` fails a hook or CTA that isn't legible by 3 s, a declared size under its floor, and a term that is never said or shown.
 - **Automated:** run `python3 scripts/qa_video.py film.mp4 --out qa/ [--beats timeline.json] [--loop]`. It produces:
   - contact sheets 0.3 s inside each beat, a 360 px phone sheet, and the hook sheet (0–3 s, the muted test);
+  - the render against the plan: size, frame rate and length, and a variable frame rate;
   - the rendered font size and contrast of every hook, CTA and term text the timeline gives a `box`;
   - a pop and single-frame-flash scan, frozen stretches, and a flat or black frame 0;
   - detected cuts compared with planned ones;

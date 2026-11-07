@@ -23,7 +23,12 @@ dBFS (default -30), so a quiet bed under a loud film doesn't count as silence. W
 timeline's meta.loop turns on the loop check and meta.clock == "voice" makes the
 loudest-moment check advisory (the voice is usually the loudest thing in a narrated film).
 
-Needs ffmpeg/ffprobe on PATH, numpy and Pillow. Exit code 1 if any check FAILs.
+With --beats the render is also held to the plan: size, frame rate and length against meta.
+A draft at a lower resolution is fine: text boxes are scaled to it. A different aspect is a FAIL.
+A variable frame rate is a WARN.
+
+Needs ffmpeg/ffprobe on PATH, numpy and Pillow.
+Exit code 1 if any check FAILs, 2 if the film or timeline can't be read at all.
 """
 import argparse
 import json
@@ -51,17 +56,29 @@ def run(cmd) -> str:
     return run_bytes(cmd).decode()
 
 
+def rate(s):
+    """'30000/1001' -> 29.97; ffprobe's '0/0' (unknown) -> 0."""
+    num, den = (int(x) for x in str(s).split("/"))
+    return num / den if num and den else 0.0
+
+
 def probe(path):
     out = json.loads(run(["ffprobe", "-v", "error", "-show_entries",
-                          "stream=codec_type,width,height,r_frame_rate:format=duration",
+                          "stream=codec_type,width,height,r_frame_rate,avg_frame_rate:format=duration",
                           "-of", "json", str(path)]))
     v = next((s for s in out["streams"] if s["codec_type"] == "video"), None)
     if v is None:
         raise RuntimeError("no video stream")
-    num, den = (int(x) for x in v["r_frame_rate"].split("/"))
-    return {"w": int(v["width"]), "h": int(v["height"]), "fps": num / den,
-            "dur": float(out["format"]["duration"]),
-            "audio": any(s["codec_type"] == "audio" for s in out["streams"])}
+    nominal, average = rate(v["r_frame_rate"]), rate(v["avg_frame_rate"])
+    if not (nominal or average):
+        raise RuntimeError("the video stream reports no frame rate")
+    try:
+        dur = float(out["format"]["duration"])
+    except (KeyError, ValueError):
+        raise RuntimeError("the file reports no duration") from None
+    vfr = bool(nominal and average) and abs(nominal - average) / nominal > 0.01
+    return {"w": int(v["width"]), "h": int(v["height"]), "fps": nominal or average, "dur": dur, "vfr": vfr,
+            "avg_fps": round(average, 3), "audio": any(s["codec_type"] == "audio" for s in out["streams"])}
 
 
 # ---------------------------------------------------------------- picture analysis
@@ -93,6 +110,8 @@ def frame_stats(path, info):
         prev2, prev = prev, f
     proc.wait()
     n = len(mean)
+    if not n:
+        raise RuntimeError("no frames could be decoded")
     skip = [math.nan] + skip + [math.nan] if n >= 2 else [math.nan] * n
     seam = float(np.abs(prev - first).mean()) if (n >= 2 and prev is not None and first is not None) else math.nan
     return {"n": n, "mean": np.array(mean), "std": np.array(std), "d": np.array(d),
@@ -160,6 +179,8 @@ def analyse_picture(st, fps, args):
         v_in, v_out = d[n - 1], d[1]
         res["loop"] = {"seam": round(st["seam"], 3),
                        "seam_vs_median": round(st["seam"] / (med + 1e-6), 2),
+                       # the last frame repeats the first: position matches, but it stutters
+                       "duplicate": bool(med >= 0.5 and st["seam"] < 0.25 * med),
                        "speed_ratio": round((v_in + 0.05) / (v_out + 0.05), 2)}
     return res
 
@@ -224,6 +245,7 @@ def analyse_audio(path, args, planned=None):
         a, b = float(ps["from"]), float(ps["to"])
         inside = [db[j] for j in range(nwin) if j * hop / sr >= a and (j * hop + win) / sr <= b]
         if not inside:
+            res["planned_silences"].append({"from": a, "to": b, "ok": None})
             continue
         loudest_inside = float(max(inside))
         res["planned_silences"].append({"from": a, "to": b, "max_db": round(loudest_inside, 1),
@@ -368,44 +390,86 @@ def valid_box(box):
             and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in box))
 
 
+def is_num(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def entries(v):
+    """The objects in a timeline list field. check_timeline.py reports wrong shapes; here they're skipped."""
+    return [x for x in v if isinstance(x, dict)] if isinstance(v, list) else []
+
+
 def beat_times(tl):
-    """'scene.beat' -> seconds, for fields that point at beats by name."""
+    """'scene.beat' -> seconds, for fields that point at beats by name (or index, for a list)."""
     out = {}
-    for s in tl.get("scenes", []):
+    for s in entries(tl.get("scenes")):
         b = s.get("beats")
-        for k, v in (b.items() if isinstance(b, dict) else []):
-            if isinstance(v, (int, float)):
+        for k, v in (b.items() if isinstance(b, dict) else enumerate(b) if isinstance(b, list) else []):
+            if is_num(v):
                 out[f"{s.get('id')}.{k}"] = float(v)
     return out
 
 
 def load_timeline(path):
     tl = json.loads(Path(path).read_text())
-    nums = lambda xs: [float(v) for v in xs if isinstance(v, (int, float))]
-    beats, cuts, hero = [], [], None
+    nums = lambda xs: [float(v) for v in xs if is_num(v)]
+    empty = {"beats": [], "cuts": [], "hero": None, "silences": [], "loop": False,
+             "clock": None, "texts": [], "meta": {}}
     if isinstance(tl, list):
-        return {"beats": sorted(set(nums(tl))), "cuts": [], "hero": None,
-                "silences": [], "loop": False, "clock": None, "texts": []}
-    for s in tl.get("scenes", []):
-        if isinstance(s.get("start"), (int, float)):
+        return {**empty, "beats": sorted(set(nums(tl)))}
+    if not isinstance(tl, dict):
+        raise RuntimeError(f"{path}: a timeline must be a JSON object or a list of times")
+    beats = []
+    for s in entries(tl.get("scenes")):
+        if is_num(s.get("start")):
             beats.append(float(s["start"]))
         b = s.get("beats")
-        beats += nums(b.values()) if isinstance(b, dict) else nums(b or [])
-    beats += nums(tl.get("beats", []) if isinstance(tl.get("beats"), list) else [])
-    cuts = nums(tl.get("cuts", []))
-    if isinstance(tl.get("hero"), dict):
-        hero = tl["hero"].get("t")
-    meta = tl.get("meta", {}) if isinstance(tl.get("meta"), dict) else {}
-    sil = [x for x in tl.get("silences", []) if isinstance(x, dict) and "from" in x and "to" in x]
+        beats += nums(b.values()) if isinstance(b, dict) else nums(b) if isinstance(b, list) else []
+    beats += nums(tl["beats"]) if isinstance(tl.get("beats"), list) else []
+    hero = tl["hero"].get("t") if isinstance(tl.get("hero"), dict) else None
+    meta = tl["meta"] if isinstance(tl.get("meta"), dict) else {}
     named = beat_times(tl)
     texts = []
-    for x in tl.get("texts", []):
-        if isinstance(x, dict) and x.get("role") in TEXT_FLOORS:
-            t = x.get("from") if isinstance(x.get("from"), (int, float)) else named.get(x.get("in"))
-            texts.append({"text": str(x.get("text", x.get("id", "?"))), "role": x["role"],
+    for x in entries(tl.get("texts")):
+        role = x.get("role")
+        if isinstance(role, str) and role in TEXT_FLOORS:
+            t = float(x["from"]) if is_num(x.get("from")) else named.get(x.get("in"))
+            texts.append({"text": str(x.get("text", x.get("id", "?"))), "role": role,
                           "from": t, "box": x.get("box")})
-    return {"beats": sorted(set(beats)), "cuts": cuts, "hero": hero, "silences": sil,
-            "loop": bool(meta.get("loop")), "clock": meta.get("clock"), "texts": texts}
+    return {"beats": sorted(set(beats)), "hero": hero if is_num(hero) else None,
+            "cuts": nums(tl["cuts"]) if isinstance(tl.get("cuts"), list) else [],
+            "silences": [x for x in entries(tl.get("silences")) if is_num(x.get("from")) and is_num(x.get("to"))],
+            "loop": bool(meta.get("loop")), "clock": meta.get("clock"), "texts": texts, "meta": meta}
+
+
+def render_vs_plan(meta, info, frames):
+    """Checks of the render against meta. Returns (checks, box scale for a same-aspect draft)."""
+    w, h, fps, dur = (meta.get(k) for k in ("w", "h", "fps", "dur"))
+    out, scale, seen = [], 1.0, []
+    if is_num(w) and is_num(h) and w > 0 and h > 0:
+        if (w, h) != (info["w"], info["h"]):
+            if abs(info["w"] / info["h"] - w / h) > 0.01 * w / h:
+                out.append(("FAIL", f"rendered {info['w']}x{info['h']}, planned {w}x{h}: a different aspect"))
+            else:
+                scale = info["w"] / w
+                out.append(("WARN", f"rendered {info['w']}x{info['h']}, planned {w}x{h}: a draft? Text boxes are "
+                                    f"scaled by {scale:.3g}; measure the master before delivery"))
+        else:
+            seen.append(f"{w}x{h}")
+    if is_num(fps) and fps > 0:
+        if abs(info["fps"] - fps) > 0.005 * fps:
+            out.append(("WARN", f"rendered at {info['fps']:.3f} fps, planned {fps}"))
+        else:
+            seen.append(f"{fps:g} fps")
+    if is_num(dur) and dur > 0:
+        secs = frames / info["fps"]
+        if abs(secs - dur) > 2 / info["fps"]:
+            out.append(("WARN", f"{frames} frames run {secs:.3f} s, planned {dur:g} s: beats and sound may have slipped"))
+        else:
+            seen.append(f"{dur:g} s")
+    if seen and not out:
+        out.append(("PASS", ", ".join(seen)))
+    return out, scale
 
 
 # ---------------------------------------------------------------- report
@@ -464,8 +528,10 @@ def main():
     planned_sil: list = []
     texts: list = []
     hero = clock = None
+    meta: dict = {}
     if args.beats:
         tl = load_timeline(args.beats)
+        meta = tl["meta"]
         beats, planned_cuts, hero = tl["beats"], tl["cuts"], tl["hero"]
         planned_sil, clock, texts = tl["silences"], tl["clock"], tl["texts"]
         args.loop = args.loop or tl["loop"]
@@ -476,6 +542,10 @@ def main():
 
     st = frame_stats(video, info)
     pic = analyse_picture(st, fps, args)
+    plan_checks, box_scale = render_vs_plan(meta, info, st["n"])
+    for x in texts:
+        if valid_box(x["box"]):
+            x["box"] = [v * box_scale for v in x["box"]]
     cutcmp = compare_cuts(pic["cuts"], planned_cuts, fps)
     aud = analyse_audio(video, args, planned_sil) if info["audio"] else None
 
@@ -500,6 +570,11 @@ def main():
     def add(level, name, msg):
         checks.append({"level": level, "check": name, "detail": msg})
 
+    for level, detail in plan_checks:
+        add(level, "render vs plan", detail)
+    if info["vfr"]:
+        add("WARN", "frame rate", f"variable: {info['avg_fps']} fps on average against a nominal {fps:g}. "
+            "Coded renders should be constant")
     f0 = pic["frame0"]
     if f0["contrast"] < 6 or f0["mean"] < 8:
         add("FAIL", "frame 0", f"flat or black (mean {f0['mean']}, contrast {f0['contrast']}): thumbnails and muted autoplay show this")
@@ -547,6 +622,9 @@ def main():
         add("PASS" if ok else "FAIL", "loop seam",
             f"seam {lp['seam']}/255 = {lp['seam_vs_median']}x median step (<=2, or <0.5/255), "
             f"speed in/out ratio {lp['speed_ratio']} (0.5-2)")
+        if lp["duplicate"]:
+            add("WARN", "loop seam", "the last frame repeats the first, so the loop holds for a frame each pass: "
+                "end one frame earlier")
     if aud is None:
         add("INFO", "audio", "no audio stream")
     else:
@@ -566,6 +644,9 @@ def main():
                 f"silences >= 0.4 s below {aud['silence_threshold_db']} dBFS: "
                 f"{aud['silences'][:8]}")
             for ps in aud.get("planned_silences", []):
+                if ps["ok"] is None:
+                    add("WARN", "planned silence", f"{ps['from']}-{ps['to']} s is too short to measure (< 0.1 s)")
+                    continue
                 add("PASS" if ps["ok"] else "FAIL", "planned silence",
                     f"{ps['from']}-{ps['to']} s peaks at {ps['max_db']} dBFS, {ps['depth_db']} dB under p90 "
                     f"(needs < {aud['silence_threshold_db']} dBFS)")
@@ -586,4 +667,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (RuntimeError, OSError, json.JSONDecodeError) as e:
+        print(f"qa_video: can't run: {e}", file=sys.stderr)
+        sys.exit(2)
