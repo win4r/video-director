@@ -114,6 +114,7 @@ Rules:
 - **Texts:** `from`/`to` (or `in`/`out` naming beats) bound the time the text is fully legible, and `check_timeline.py` holds each one to the read-time formula.
   - Mark the hook, the CTA and on-screen terms with `role`, and give their rendered font size in `px`.
   - Once the layout exists, add `box`: [x, y, w, h] in delivery pixels at `from`, the text's own bounds rather than its container. `qa_video.py` measures size and contrast there.
+  - A box may hold several lines. `qa_video.py` reports the largest, so give a smaller line its own `texts[]` entry. Keep the box inside the frame: if it runs off, the check can't pass, and it warns that the text may be cropped.
 - **Terms** lists the words the film must say (if narrated) and show (SKILL.md principle 13).
 - **Reads:**
   - Scene `reads` belong to that scene.
