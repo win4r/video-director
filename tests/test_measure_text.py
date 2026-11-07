@@ -85,6 +85,17 @@ def test_small_kicker_above_a_big_title_is_its_own_line(qa):
     assert m["lines"] == 2
 
 
+def test_tight_kicker_does_not_cap_the_big_title_below_it(qa):
+    """Line spacing limits lines of a similar size, not a small line sitting close above a big one."""
+    im = Image.new("RGB", (1400, 240), (16, 16, 16))
+    draw = ImageDraw.Draw(im)
+    draw.text((20, 4), "KICKER", font=font(36), fill="white")
+    draw.text((20, 26), "HUGE", font=font(120), fill="white")
+    m = qa.measure_text(im, whole(im), 1080)
+    assert m["lines"] == 2
+    assert m["font_px"] == pytest.approx(120, rel=0.1)  # capped at the spacing, it would read ~103
+
+
 def test_largest_line_counts(qa):
     im = Image.new("RGB", (1400, 300), (16, 16, 16))
     draw = ImageDraw.Draw(im)

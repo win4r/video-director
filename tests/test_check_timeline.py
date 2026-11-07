@@ -104,7 +104,7 @@ def test_caption_rate(tmp_path, s, secs, warns):
     assert ("/s (>" in out) is warns, out
 
 
-def test_cjk_rules_match_craft_md(qa=None):
+def test_cjk_rules_match_craft_md():
     ct = load("check_timeline")
     assert ct.read_time("字" * 9) == pytest.approx(9 / 4.5 + 1.5)
     assert ct.read_time("字") == pytest.approx(1.5 + 1 / 4.5)

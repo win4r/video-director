@@ -318,7 +318,7 @@ def line_bands(rows):
         if joined:
             below_a, below_b = joined[-1]
             tall = below_b - below_a
-            if b - a < 0.35 * tall and below_a - b < 0.35 * tall:
+            if b - a < 0.25 * tall and below_a - b < 0.2 * tall:
                 joined[-1] = (a, below_b)
                 continue
         joined.append((a, b))

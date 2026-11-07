@@ -385,6 +385,6 @@ When the request is a one-liner, expand it into this brief yourself, filling gap
 | `references/sound.md` | Phase 1: §1–2 (choose the clock; pick or design the grid). Later: VO timing, SFX placement, silence, mix and loudness |
 | `references/quality.md` | Phase 1: §3 (the AI tells to ban). Before calling anything done: check catalogue, critic rubric, failure→fix table |
 | `scripts/check_timeline.py` | Gate of phase 2, and again after any retime |
-| `scripts/qa_video.py` | Every render after the first draft. It needs ffmpeg/ffprobe, numpy and Pillow. Pass `--beats timeline.json` so it can read the planned cuts, silences, hero, loop and clock |
+| `scripts/qa_video.py` | Every render after the first draft. It needs ffmpeg/ffprobe, numpy and Pillow. Pass `--beats timeline.json` so it can read the planned size, frame rate, length, cuts, silences, hero, loop and clock |
 
 After delivery, propose at most one new rule learned from this film, with its number and the failure that taught it. Add it to your notes only if the user agrees. Rules written down that way become case law; rules made up in advance mostly become clutter.

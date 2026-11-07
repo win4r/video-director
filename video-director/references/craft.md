@@ -320,7 +320,7 @@ window.CUES = timeline;       // exported from the single timeline, for QA and s
 - Grain and deliberate line boil are the only textures that change over time. Paper, canvas and brush marks belong to the world: generate them once from a seed, cache them in object space, and never regenerate them per frame, or they boil.
 
 **Encode:**
-- H.264, yuv420p, BT.709 tags, TV range.
+- H.264, yuv420p, BT.709 tags, TV range, constant frame rate.
 - Master CRF 14–19, `-preset slow`. Use `-tune film` for texture and `-tune animation` for flat art.
 - AAC 256k.
 - Draft renders: half resolution, 30 fps, CRF 23–28. Use them to judge rhythm, not sharpness.
