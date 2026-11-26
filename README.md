@@ -1,4 +1,4 @@
-# [🚀Bilibili profile](https://space.bilibili.com/3493277319825652)
+# [🚀Bilibili profile](https://bilibili.com/video/BV1zjao66EhE/)
 
 # [🚀Watch the video on Bilibili](https://www.bilibili.com/video/BV1bQ4n6GENf/)
 
